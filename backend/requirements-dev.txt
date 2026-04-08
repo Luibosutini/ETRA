@@ -1,0 +1,7 @@
+-r requirements.txt
+pytest>=8.0
+pytest-cov>=5.0
+moto[ec2,s3,sns]>=5.0
+ruff>=0.4
+mypy>=1.10
+boto3-stubs[ec2,s3,sns]>=1.34

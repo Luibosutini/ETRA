@@ -1,0 +1,30 @@
+{
+  "name": "etra-viewer",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "cross-env APP_CONFIG=config/app-config.js ohif-viewer",
+    "build": "cross-env APP_CONFIG=config/app-config.js ohif-build",
+    "lint": "eslint src --ext .ts,.tsx --max-warnings 0",
+    "preview": "serve dist"
+  },
+  "dependencies": {
+    "@ohif/app": "3.9.0",
+    "@ohif/extension-cornerstone": "3.9.0",
+    "@ohif/extension-cornerstone-dicom-sr": "3.9.0",
+    "@ohif/extension-default": "3.9.0",
+    "@ohif/extension-measurement-tracking": "3.9.0",
+    "@ohif/mode-longitudinal": "3.9.0",
+    "@ohif/mode-basic-dev-tools": "3.9.0"
+  },
+  "devDependencies": {
+    "@ohif/cli": "3.9.0",
+    "cross-env": "^7.0.3",
+    "eslint": "^8.57.0",
+    "serve": "^14.2.3"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  }
+}

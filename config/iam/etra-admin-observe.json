@@ -1,0 +1,54 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "LambdaInvoke",
+      "Effect": "Allow",
+      "Action": "lambda:InvokeFunction",
+      "Resource": "arn:aws:lambda:*:*:function:etra-*"
+    },
+    {
+      "Sid": "WorkspaceS3",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:PutObject",
+        "s3:DeleteObject",
+        "s3:ListBucket"
+      ],
+      "Resource": [
+        "arn:aws:s3:::etra-*-workspace",
+        "arn:aws:s3:::etra-*-workspace/*"
+      ]
+    },
+    {
+      "Sid": "HealthImagingRead",
+      "Effect": "Allow",
+      "Action": [
+        "medical-imaging:GetDatastore",
+        "medical-imaging:ListDatastores",
+        "medical-imaging:GetImageSet",
+        "medical-imaging:SearchImageSets"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "Observability",
+      "Effect": "Allow",
+      "Action": [
+        "cloudwatch:GetMetricData",
+        "cloudwatch:DescribeAlarms",
+        "cloudwatch:ListMetrics",
+        "logs:GetLogEvents",
+        "logs:FilterLogEvents",
+        "logs:DescribeLogGroups",
+        "logs:DescribeLogStreams",
+        "cloudtrail:LookupEvents",
+        "cloudtrail:DescribeTrails",
+        "budgets:ViewBudget",
+        "ce:GetCostAndUsage"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

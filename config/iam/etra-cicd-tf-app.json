@@ -1,0 +1,87 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "IAMRoleManage",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreateRole", "iam:DeleteRole", "iam:GetRole", "iam:UpdateRole",
+        "iam:PutRolePolicy", "iam:DeleteRolePolicy", "iam:GetRolePolicy",
+        "iam:ListAttachedRolePolicies", "iam:ListRolePolicies",
+        "iam:CreateInstanceProfile", "iam:DeleteInstanceProfile",
+        "iam:GetInstanceProfile", "iam:AddRoleToInstanceProfile",
+        "iam:RemoveRoleFromInstanceProfile",
+        "iam:TagRole", "iam:UntagRole"
+      ],
+      "Resource": [
+        "arn:aws:iam::*:role/etra-*",
+        "arn:aws:iam::*:instance-profile/etra-*"
+      ]
+    },
+    {
+      "Sid": "IAMPolicyManage",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreatePolicy", "iam:DeletePolicy", "iam:GetPolicy",
+        "iam:GetPolicyVersion", "iam:CreatePolicyVersion", "iam:DeletePolicyVersion",
+        "iam:ListPolicyVersions"
+      ],
+      "Resource": "arn:aws:iam::*:policy/etra-*"
+    },
+    {
+      "Sid": "IAMAttachAny",
+      "Effect": "Allow",
+      "Action": [
+        "iam:AttachRolePolicy",
+        "iam:DetachRolePolicy"
+      ],
+      "Resource": "arn:aws:iam::*:role/etra-*"
+    },
+    {
+      "Sid": "IAMPassRole",
+      "Effect": "Allow",
+      "Action": "iam:PassRole",
+      "Resource": "arn:aws:iam::*:role/etra-*"
+    },
+    {
+      "Sid": "IAMReadOnly",
+      "Effect": "Allow",
+      "Action": [
+        "iam:ListRoles",
+        "iam:ListPolicies",
+        "iam:GetPolicy",
+        "iam:GetPolicyVersion"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "LambdaManage",
+      "Effect": "Allow",
+      "Action": [
+        "lambda:CreateFunction", "lambda:DeleteFunction",
+        "lambda:UpdateFunctionCode", "lambda:UpdateFunctionConfiguration",
+        "lambda:GetFunction", "lambda:GetFunctionConfiguration",
+        "lambda:AddPermission", "lambda:RemovePermission",
+        "lambda:GetPolicy", "lambda:PublishVersion", "lambda:TagResource"
+      ],
+      "Resource": "arn:aws:lambda:*:*:function:etra-*"
+    },
+    {
+      "Sid": "CognitoAndHealthImaging",
+      "Effect": "Allow",
+      "Action": [
+        "cognito-idp:CreateUserPool", "cognito-idp:DeleteUserPool",
+        "cognito-idp:DescribeUserPool", "cognito-idp:UpdateUserPool",
+        "cognito-idp:CreateUserPoolClient", "cognito-idp:DeleteUserPoolClient",
+        "cognito-idp:DescribeUserPoolClient", "cognito-idp:UpdateUserPoolClient",
+        "cognito-idp:CreateUserPoolDomain", "cognito-idp:DeleteUserPoolDomain",
+        "cognito-idp:CreateGroup", "cognito-idp:DeleteGroup",
+        "cognito-idp:TagResource", "cognito-idp:ListTagsForResource",
+        "medical-imaging:CreateDatastore", "medical-imaging:DeleteDatastore",
+        "medical-imaging:GetDatastore", "medical-imaging:ListDatastores",
+        "medical-imaging:TagResource"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

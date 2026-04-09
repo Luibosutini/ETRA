@@ -13,6 +13,8 @@ override.tf.json
 terraform.rc
 crash.log
 crash.*.log
+tfplan
+*.tfplan
 
 # Python
 __pycache__/

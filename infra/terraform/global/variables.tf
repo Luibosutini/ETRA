@@ -6,5 +6,5 @@ variable "state_bucket_name" {
 variable "lock_table_name" {
   description = "Terraform state ロック用 DynamoDB テーブル名"
   type        = string
-  default     = "terraform-lock"
+  default     = "etra-tf-lock"
 }

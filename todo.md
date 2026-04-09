@@ -34,21 +34,21 @@
 
 ## 解析環境
 
-- [ ] EC2 ユーザーデータスクリプト（JupyterLab / Python 環境構築）
+- [x] EC2 ユーザーデータスクリプト（JupyterLab / Python 環境構築）
 - [ ] MATLAB ライセンス確認・インスタンスタイプ確定
 - [ ] 解析テンプレートスクリプト作成（`analysis/python/`, `analysis/matlab/`）
 
 ## ドキュメント
 
-- [ ] README.md 作成
-- [ ] architecture.md 詳細化（Terraform モジュール構成確定後）
-- [ ] security.md 詳細化（KMS / WAF 方針確定後）
+- [x] README.md 作成
+- [x] architecture.md 詳細化（Terraform モジュール構成確定後）
+- [x] security.md 詳細化（KMS / WAF 方針確定後）
 
 ## 運用準備
 
-- [ ] 初回デプロイ手順書確認（`docs/operations.md`）
-- [ ] コスト上限アラート設定（AWS Budgets）
-- [ ] 1 か月後コストレビュー計画
+- [x] 初回デプロイ手順書確認（`docs/operations.md`）
+- [x] コスト上限アラート設定（AWS Budgets）
+- [x] 1 か月後コストレビュー計画
 
 ---
 

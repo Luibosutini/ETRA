@@ -5,6 +5,10 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
+    awscc = {
+      source  = "hashicorp/awscc"
+      version = "~> 1.0"
+    }
   }
 
   backend "s3" {
@@ -26,6 +30,10 @@ provider "aws" {
       ManagedBy   = "Terraform"
     }
   }
+}
+
+provider "awscc" {
+  region = var.region
 }
 
 # CloudFront WAF は us-east-1 固定

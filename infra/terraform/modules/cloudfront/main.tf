@@ -30,7 +30,9 @@ resource "aws_wafv2_web_acl" "viewer" {
     name     = "AWSManagedRulesCommonRuleSet"
     priority = 10
 
-    override_action { none {} }
+    override_action {
+      none {}
+    }
 
     statement {
       managed_rule_group_statement {
@@ -51,7 +53,9 @@ resource "aws_wafv2_web_acl" "viewer" {
     name     = "AWSManagedRulesAmazonIpReputationList"
     priority = 20
 
-    override_action { none {} }
+    override_action {
+      none {}
+    }
 
     statement {
       managed_rule_group_statement {
@@ -160,7 +164,9 @@ resource "aws_cloudfront_distribution" "viewer" {
   }
 
   restrictions {
-    geo_restriction { restriction_type = "none" }
+    geo_restriction {
+      restriction_type = "none"
+    }
   }
 
   viewer_certificate {

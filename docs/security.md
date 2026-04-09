@@ -3,39 +3,81 @@
 ## IAM 設計方針
 
 - 最小権限原則を遵守する。
-- 本番用 IAM 権限を広く取らない（禁止事項 #5）。
-- ユーザーが EC2 を直接自由起動できる権限を付与しない（禁止事項 #8）。
+- ユーザーが EC2 を直接自由起動できる権限を付与しない。
 - Lambda 実行ロールは関数ごとに分離し、必要なリソースのみアクセス可能にする。
+- EC2 インスタンスロールは S3 ワークスペースバケットと SSM のみに限定する。
 
-### ロール設計（概要）
+### ロール設計
 
 | ロール | 用途 | 主な権限 |
 |--------|------|---------|
-| `lambda-start-compute` | EC2 起動 Lambda | `ec2:StartInstances`, `ssm:StartAutomationExecution` |
-| `lambda-stop-compute` | EC2 停止 Lambda | `ec2:StopInstances` |
-| `lambda-workspace-api` | S3 操作 Lambda | `s3:GetObject`, `s3:PutObject`, `s3:DeleteObject`（ワークスペースバケットのみ） |
-| `lambda-status-compute` | 状態照会 Lambda | `ec2:DescribeInstances` |
-| `ec2-analysis-node` | EC2 インスタンスロール | S3 ワークスペースバケット読み書き、SSM エージェント |
-| `cognito-admin` | 管理者グループ | 全機能 |
-| `cognito-user` | 一般利用者グループ | 自分の `personal/` と `shared/` への読み書き、結果保存 |
+| `etra-<env>-lambda-start-compute` | EC2 起動 Lambda | `ec2:StartInstances`, `ec2:DescribeInstances`（Project タグ限定） |
+| `etra-<env>-lambda-stop-compute` | EC2 停止 Lambda | `ec2:StopInstances`, `ec2:DescribeInstances`（Project タグ限定） |
+| `etra-<env>-lambda-status-compute` | 状態照会 Lambda | `ec2:DescribeInstances` |
+| `etra-<env>-lambda-workspace-api` | S3 操作 Lambda | `s3:GetObject`, `s3:PutObject`, `s3:DeleteObject`, `s3:ListBucket`（ワークスペースバケットのみ） |
+| `etra-<env>-lambda-notify-status` | 通知 Lambda | `sns:Publish`（通知トピックのみ） |
+| `etra-<env>-ec2-analysis` | EC2 インスタンスロール | S3 ワークスペースバケット読み書き、`AmazonSSMManagedInstanceCore` |
+
+### Cognito グループ
+
+| グループ | 対象 | 権限 |
+|---------|------|------|
+| `admin` | 管理者 | 全機能・全ユーザーのワークスペース参照 |
+| `user` | 一般利用者 | 自分の `personal/`・`shared/` 読み書き、解析実行、結果保存 |
 
 ---
 
 ## ネットワークセキュリティ
 
-- EC2 はパブリックサブネットに配置しない。
-- EC2 へのアクセスは Amazon DCV（ポート 8443）または Systems Manager Session Manager 経由のみ。
-- インバウンドの SSH（22 番ポート）を Security Group で開放しない。
-- S3 / HealthImaging / Lambda へは VPC エンドポイント経由でアクセスする。
-- OHIF Viewer は CloudFront + WAF 経由で公開する。
+### EC2 アクセス制御
+- EC2 はプライベートサブネットに配置。パブリック IP なし。
+- Security Group の inbound ルールなし（SSH 22 番ポート非開放）。
+- アクセスは SSM ポートフォワーディング経由のみ。固定 IP 不要。
+
+```
+利用者 → SSM Session Manager → EC2 (127.0.0.1:8888 / 8443)
+```
+
+### VPC Endpoints
+プライベートサブネットから AWS サービスへのアクセスはすべて VPC Endpoint 経由。
+インターネット経由の通信を排除する。
+
+| Endpoint | 種別 |
+|----------|------|
+| S3 | Gateway |
+| SSM | Interface |
+| SSMMessages | Interface |
+| EC2Messages | Interface |
+| Lambda | Interface |
+
+### CloudFront + WAF
+- OHIF Viewer は CloudFront 経由でのみ公開。S3 バケットへの直接アクセスは OAC（Origin Access Control）で制限。
+- WAF ルール:
+  - `AWSManagedRulesCommonRuleSet`: 一般的な脅威（SQLi, XSS 等）をブロック
+  - `AWSManagedRulesAmazonIpReputationList`: 既知の不正 IP をブロック
+
+---
+
+## 認証
+
+### Cognito 設定
+- **MFA**: OPTIONAL（TOTP）
+- **パスワードポリシー**: 12 文字以上、大文字・小文字・数字・記号を含む
+- **自己サインアップ**: 無効（管理者のみユーザー作成可能）
+- **メールドメイン制限**: Pre-signup Lambda で許可ドメイン外のサインアップを拒否
+- **トークン有効期限**: アクセストークン 1 時間、リフレッシュトークン 30 日
+
+### 認証フロー
+Authorization Code Flow with PKCE。クライアントシークレットなし（SPA 向け）。
 
 ---
 
 ## シークレット管理
 
-- DB パスワード、API キー、トークンは AWS Secrets Manager に保管する。
+- DB パスワード、API キー等は AWS Secrets Manager に保管する。
 - 環境依存の設定値は AWS Systems Manager Parameter Store（SecureString）を使用する。
 - コードや Terraform state にシークレットを直接含めない。
+- `terraform.tfvars` は `.gitignore` に追加し、リポジトリにコミットしない。
 
 ---
 
@@ -43,20 +85,24 @@
 
 | 対象 | 暗号化方式 |
 |------|-----------|
-| S3 バケット | SSE-S3 または SSE-KMS |
-| EBS ボリューム | AWS KMS |
+| S3 バケット（ワークスペース・フロントエンド・ログ） | SSE-S3 (AES256) |
+| S3 バケット（Terraform state） | SSE-S3 (AES256) |
+| EBS ボリューム（EC2 ルートディスク） | AWS KMS（gp3, `encrypted = true`） |
 | HealthImaging | AWS マネージドキー |
-| 通信（TLS） | TLS 1.2 以上 |
+| EC2 メタデータ | IMDSv2 強制（`http_tokens = "required"`） |
+| 通信（TLS） | TLS 1.2 以上（CloudFront デフォルト） |
 
 ---
 
 ## 監査・ログ
 
-- **CloudTrail**: 全リージョンで有効化し、S3 バケットへ保存する。
-- **CloudWatch Logs**: Lambda・EC2 のアプリケーションログを収集する。
-- **S3 アクセスログ**: ワークスペースバケットのアクセスログを有効化する。
-- HealthImaging へのアクセスは CloudTrail で追跡可能にする。
-- 監査ログが取れない仕組みを正式採用しない（禁止事項 #7）。
+- **CloudTrail**: 全リージョンで有効化、S3 バケットへ保存。
+- **CloudWatch Logs**: Lambda・EC2 userdata のログを収集（保持期間 30 日）。
+- **S3 アクセスログ**: ワークスペースバケットのアクセスログを `etra-<env>-access-logs` バケットへ保存。
+- **CloudWatch アラーム**:
+  - Lambda 関数エラー（各関数ごと）
+  - EC2 CPU 使用率 90% 超過
+- 監査ログが取れない仕組みを正式採用しない。
 
 ---
 
@@ -71,6 +117,7 @@
 
 ## TODO / 未確定事項
 
-- WAF ルールセットの詳細（OWASP ルールグループの適用範囲）
-- KMS キー管理ポリシー（カスタマーマネージドキーの採用判断）
-- Cognito MFA 強制の要否
+- WAF ルールセットの詳細（IP レート制限の閾値設定）
+- KMS カスタマーマネージドキーの採用判断（現在は AWS マネージドキー）
+- Cognito MFA 強制の要否（現在は OPTIONAL）
+- カスタムドメイン導入時の ACM 証明書設定

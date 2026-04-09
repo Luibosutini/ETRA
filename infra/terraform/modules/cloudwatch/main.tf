@@ -56,9 +56,9 @@ resource "aws_cloudwatch_metric_alarm" "ec2_cpu_high" {
   comparison_operator = "GreaterThanThreshold"
   treat_missing_data  = "notBreaching"
 
-  dimensions = {
-    AutoScalingGroupName = "" # EC2 起動後に設定
-  }
+  # EC2 インスタンス ID は起動後に決まるため、dimension は ec2 モジュールから渡す
+  # 現時点ではアカウント内全 EC2 の平均 CPU を監視（dimension なし）
+  dimensions = {}
 
   alarm_actions = [aws_sns_topic.alerts.arn]
 }

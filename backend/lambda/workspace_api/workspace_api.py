@@ -45,16 +45,21 @@ def _list_objects(s3, prefix: str) -> list[dict]:
 
 
 def handler(event: dict, context: object) -> dict:
-    logger.info("Event: %s", json.dumps(event))
+    # headers には Authorization が含まれるため除外してログ出力
+    safe_event = {k: v for k, v in event.items() if k != "headers"}
+    logger.info("Event: %s", json.dumps(safe_event))
 
     try:
         user_id = get_caller_user_id(event)
     except PermissionError as e:
         return forbidden(str(e))
 
-    method = event.get("httpMethod", "GET")
+    # HTTP API v2: requestContext.http.method / v1: httpMethod
+    req_ctx = event.get("requestContext", {})
+    method = req_ctx.get("http", {}).get("method") or event.get("httpMethod", "GET")
     path_params = event.get("pathParameters") or {}
-    raw_key: str = path_params.get("key", "")
+    # v2 route `{proxy+}` は "proxy" キーで来る。v1 は "key" キーを使う
+    raw_key: str = path_params.get("proxy", "") or path_params.get("key", "")
     s3_key = urllib.parse.unquote(raw_key)
     query_params = event.get("queryStringParameters") or {}
 

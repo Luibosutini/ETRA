@@ -1,11 +1,11 @@
-"""EC2 解析ノードを停止する Lambda 関数。
+"""EC2 解析ノードを停止する Lambda 関数（per-user 構成）。
 
-EventBridge スケジュール（自動停止）と API Gateway（手動停止）の両方から呼ばれる。
+ユーザーは自分の Owner タグが付いたインスタンスのみ停止可能。
 
 環境変数:
     REGION: AWS リージョン
-    ANALYSIS_INSTANCE_TAG_KEY: 停止対象を絞り込む EC2 タグキー
-    ANALYSIS_INSTANCE_TAG_VALUE: 停止対象を絞り込む EC2 タグ値
+    ANALYSIS_INSTANCE_TAG_KEY: プロジェクト絞り込みタグキー
+    ANALYSIS_INSTANCE_TAG_VALUE: プロジェクト絞り込みタグ値
 """
 import json
 import logging
@@ -25,38 +25,18 @@ TAG_KEY = os.environ.get("ANALYSIS_INSTANCE_TAG_KEY", "Project")
 TAG_VALUE = os.environ.get("ANALYSIS_INSTANCE_TAG_VALUE", "")
 
 
-def _find_running_instances(ec2, instance_id: str | None, tag_key: str, tag_value: str) -> list[str]:
-    if instance_id:
-        return [instance_id]
-
-    resp = ec2.describe_instances(
-        Filters=[
-            {"Name": f"tag:{tag_key}", "Values": [tag_value]},
-            {"Name": "instance-state-name", "Values": ["running", "pending"]},
-        ]
-    )
-    return [
-        i["InstanceId"]
-        for r in resp["Reservations"]
-        for i in r["Instances"]
-    ]
-
-
 def handler(event: dict, context: object) -> dict:
-    logger.info("Event: %s", json.dumps(event))
+    safe_event = {k: v for k, v in event.items() if k != "headers"}
+    logger.info("Event: %s", json.dumps(safe_event))
 
-    # EventBridge スケジュール経由（requestContext なし）
-    is_scheduled = "requestContext" not in event
+    if "requestContext" not in event:
+        return bad_request("Direct invocation not supported")
 
-    if not is_scheduled:
-        try:
-            get_caller_user_id(event)
-        except PermissionError as e:
-            return forbidden(str(e))
-        if not is_admin(event):
-            return forbidden("Only admin users can stop compute nodes")
+    try:
+        user_id = get_caller_user_id(event)
+    except PermissionError as e:
+        return forbidden(str(e))
 
-    # スケジュール実行時は event から tag_key / tag_value を取得できる
     body: dict = {}
     if event.get("body"):
         try:
@@ -64,20 +44,35 @@ def handler(event: dict, context: object) -> dict:
         except json.JSONDecodeError:
             return bad_request("Invalid JSON body")
 
-    instance_id: str | None = body.get("instance_id") or event.get("instance_id")
-    tag_key = event.get("tag_key", TAG_KEY)
-    tag_value = event.get("tag_value", TAG_VALUE)
+    instance_id: str | None = body.get("instance_id")
 
+    admin = is_admin(event)
     ec2 = ec2_client()
     try:
-        targets = _find_running_instances(ec2, instance_id, tag_key, tag_value)
+        # admin は全インスタンス、一般ユーザーは自分の Owner タグのみ対象
+        filters = [
+            {"Name": f"tag:{TAG_KEY}", "Values": [TAG_VALUE]},
+            {"Name": "instance-state-name", "Values": ["running", "pending"]},
+        ]
+        if not admin:
+            filters.append({"Name": "tag:Owner", "Values": [user_id]})
+
+        resp = ec2.describe_instances(Filters=filters)
+        targets = [i["InstanceId"] for r in resp["Reservations"] for i in r["Instances"]]
+
+        if instance_id:
+            if not admin and instance_id not in targets:
+                return forbidden("Cannot stop an instance you do not own")
+            targets = [instance_id]
+
         if not targets:
-            logger.info("No running instances found; nothing to stop")
             return ok({"stopped": [], "message": "No running instances"})
 
         ec2.stop_instances(InstanceIds=targets)
-        logger.info("Stopped instances: %s", targets)
+        safe_targets = [str(t).replace("\n", "").replace("\r", "") for t in targets]
+        logger.info("Stopped instances: %s by user: %s", safe_targets, user_id)
         return ok({"stopped": targets})
+
     except Exception as e:
         logger.exception("Failed to stop instances")
         return server_error(str(e))

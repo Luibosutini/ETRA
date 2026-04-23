@@ -1,4 +1,6 @@
-"""EC2 解析ノードの状態を照会する Lambda 関数。
+"""EC2 解析ノードの状態を照会する Lambda 関数（per-user 構成）。
+
+一般ユーザーは自分の Owner タグが付いたインスタンスのみ返す。admin は全台返す。
 
 環境変数:
     REGION: AWS リージョン
@@ -12,7 +14,7 @@ import sys
 sys.path.insert(0, "/opt/python")
 
 from shared.aws_clients import ec2_client
-from shared.auth import get_caller_user_id
+from shared.auth import get_caller_user_id, is_admin
 from shared.response import bad_request, forbidden, not_found, ok, server_error
 
 logger = logging.getLogger(__name__)
@@ -30,19 +32,24 @@ def _instance_summary(instance: dict) -> dict:
         "instance_type": instance["InstanceType"],
         "private_ip": instance.get("PrivateIpAddress"),
         "name": tags.get("Name", ""),
+        "owner": tags.get("Owner", ""),
         "launch_time": instance["LaunchTime"].isoformat() if instance.get("LaunchTime") else None,
     }
 
 
 def handler(event: dict, context: object) -> dict:
-    logger.info("Event: %s", json.dumps(event))
+    safe_event = {k: v for k, v in event.items() if k != "headers"}
+    logger.info("Event: %s", json.dumps(safe_event))
 
-    if "requestContext" in event:
-        try:
-            get_caller_user_id(event)
-        except PermissionError as e:
-            return forbidden(str(e))
+    if "requestContext" not in event:
+        return bad_request("Direct invocation not supported")
 
+    try:
+        user_id = get_caller_user_id(event)
+    except PermissionError as e:
+        return forbidden(str(e))
+
+    admin = is_admin(event)
     params = event.get("queryStringParameters") or {}
     instance_id: str | None = params.get("instance_id")
 
@@ -50,9 +57,18 @@ def handler(event: dict, context: object) -> dict:
     try:
         if instance_id:
             resp = ec2.describe_instances(InstanceIds=[instance_id])
-        else:
+        elif admin:
+            # admin は全インスタンスを返す
             resp = ec2.describe_instances(
                 Filters=[{"Name": f"tag:{TAG_KEY}", "Values": [TAG_VALUE]}]
+            )
+        else:
+            # 一般ユーザーは自分のインスタンスのみ
+            resp = ec2.describe_instances(
+                Filters=[
+                    {"Name": "tag:Owner", "Values": [user_id]},
+                    {"Name": f"tag:{TAG_KEY}", "Values": [TAG_VALUE]},
+                ]
             )
 
         instances = [
@@ -66,6 +82,7 @@ def handler(event: dict, context: object) -> dict:
             return not_found(f"Instance {instance_id} not found")
 
         return ok({"instances": instances})
+
     except ec2.exceptions.ClientError as e:
         code = e.response["Error"]["Code"]
         if code == "InvalidInstanceID.NotFound":

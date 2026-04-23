@@ -3,7 +3,7 @@ variable "env" { type = string }
 variable "region" { type = string }
 variable "instance_type" {
   type    = string
-  default = "t3.xlarge"  # MATLAB 確定後に見直す
+  default = "m7i.2xlarge"
 }
 variable "ami_id" {
   type    = string

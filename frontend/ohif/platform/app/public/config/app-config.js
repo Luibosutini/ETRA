@@ -1,16 +1,16 @@
 /**
- * OHIF Viewer ã‚¢ãƒ—ãƒªã‚±ãƒ¼ã‚·ãƒ§ãƒ³è¨­å®š
+ * OHIF Viewer ƒAƒvƒŠƒP[ƒVƒ‡ƒ“Ý’è
  *
- * å®Ÿè¡Œæ™‚ã«ä»¥ä¸‹ã®ç’°å¢ƒå¤‰æ•°ã‚’å‚ç…§ã™ã‚‹ï¼ˆnginx envsubst ã¾ãŸã¯ Dockerfile çµŒç”±ã§æ³¨å…¥ï¼‰:
- *   DATASTORE_ID       : AWS HealthImaging ãƒ‡ãƒ¼ã‚¿ã‚¹ãƒˆã‚¢ ID
- *   REGION             : AWS ãƒªãƒ¼ã‚¸ãƒ§ãƒ³ï¼ˆä¾‹: us-east-1ï¼‰
- *   COGNITO_USER_POOL_ID : Cognito ãƒ¦ãƒ¼ã‚¶ãƒ¼ãƒ—ãƒ¼ãƒ« ID
- *   COGNITO_CLIENT_ID  : Cognito ã‚¢ãƒ—ãƒªã‚¯ãƒ©ã‚¤ã‚¢ãƒ³ãƒˆ ID
- *   APP_URL            : ã‚¢ãƒ—ãƒªã®ãƒ™ãƒ¼ã‚¹ URLï¼ˆä¾‹: https://viewer.example.comï¼‰
+ * ŽÀsŽž‚ÉˆÈ‰º‚ÌŠÂ‹«•Ï”‚ðŽQÆ‚·‚éinginx envsubst ‚Ü‚½‚Í Dockerfile Œo—R‚Å’“üj:
+ *   DATASTORE_ID       : AWS HealthImaging ƒf[ƒ^ƒXƒgƒA ID
+ *   REGION             : AWS ƒŠ[ƒWƒ‡ƒ“i—á: us-east-1j
+ *   COGNITO_USER_POOL_ID : Cognito ƒ†[ƒU[ƒv[ƒ‹ ID
+ *   COGNITO_CLIENT_ID  : Cognito ƒAƒvƒŠƒNƒ‰ƒCƒAƒ“ƒg ID
+ *   APP_URL            : ƒAƒvƒŠ‚Ìƒx[ƒX URLi—á: https://viewer.example.comj
  */
 
 window.config = {
-  routerBasename: '/',
+  routerBasename: '/ohif',
   showStudyList: true,
   showWarningMessageForCrossOrigin: true,
   showCPUFallbackMessage: true,
@@ -18,9 +18,9 @@ window.config = {
   strictZSpacingForVolumeViewport: true,
   maxNumberOfWebWorkers: 3,
 
-  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  // ãƒ‡ãƒ•ã‚©ãƒ«ãƒˆãƒ‡ãƒ¼ã‚¿ã‚½ãƒ¼ã‚¹
-  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ
+  // ƒfƒtƒHƒ‹ƒgƒf[ƒ^ƒ\[ƒX
+  // „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ
   defaultDataSourceName: 'aws-healthimaging',
 
   dataSources: [
@@ -29,23 +29,23 @@ window.config = {
       sourceName: 'aws-healthimaging',
       configuration: {
         friendlyName: 'AWS HealthImaging',
-        datastoreId: '${DATASTORE_ID}',
-        region: '${REGION}',
-        // Cognito ã‹ã‚‰å–å¾—ã—ãŸ ID ãƒˆãƒ¼ã‚¯ãƒ³ã‚’ Authorization ãƒ˜ãƒƒãƒ€ãƒ¼ã§æ¸¡ã™
-        // OHIF ã® aws-healthimaging datasource ã¯è‡ªå‹•ã§ Cognito ãƒˆãƒ¼ã‚¯ãƒ³ã‚’ä»˜ä¸Žã™ã‚‹
+        datastoreId: '887c4218fefa4743a239eed78d87278a',
+        region: 'us-east-1',
+        // Cognito ‚©‚çŽæ“¾‚µ‚½ ID ƒg[ƒNƒ“‚ð Authorization ƒwƒbƒ_[‚Å“n‚·
+        // OHIF ‚Ì aws-healthimaging datasource ‚ÍŽ©“®‚Å Cognito ƒg[ƒNƒ“‚ð•t—^‚·‚é
       },
     },
   ],
 
-  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  // Cognito OIDC èªè¨¼
-  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ
+  // Cognito OIDC ”FØ
+  // „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ
   oidc: [
     {
-      authority: 'https://cognito-idp.${REGION}.amazonaws.com/${COGNITO_USER_POOL_ID}',
-      client_id: '${COGNITO_CLIENT_ID}',
-      redirect_uri: '${APP_URL}/callback',
-      post_logout_redirect_uri: '${APP_URL}/logout',
+      authority: 'https://cognito-idp.us-east-1.amazonaws.com/us-east-1_ctYLjFt8H',
+      client_id: '7288tp5gelq4b2slgae3on2ju4',
+      redirect_uri: 'https://d1jsy5521583dy.cloudfront.net/ohif/callback',
+      post_logout_redirect_uri: 'https://d1jsy5521583dy.cloudfront.net/ohif/logout',
       response_type: 'code',
       scope: 'openid email profile',
       // Authorization Code Flow with PKCE
@@ -55,15 +55,15 @@ window.config = {
     },
   ],
 
-  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  // ä½¿ç”¨ã™ã‚‹æ‹¡å¼µãƒ»ãƒ¢ãƒ¼ãƒ‰
-  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ
+  // Žg—p‚·‚éŠg’£Eƒ‚[ƒh
+  // „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ
   extensions: [],
   modes: [],
 
-  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  // UI ã‚«ã‚¹ã‚¿ãƒžã‚¤ã‚º
-  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ
+  // UI ƒJƒXƒ^ƒ}ƒCƒY
+  // „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ
   customizationService: {
     'studyBrowser.studyMenuItem': [],
   },

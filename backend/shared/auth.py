@@ -20,14 +20,28 @@ def _decode_jwt_payload(token: str) -> dict[str, Any]:
     return json.loads(base64.urlsafe_b64decode(payload))
 
 
+def _get_claims(event: dict) -> dict:
+    """API Gateway v1 / v2 両形式から JWT claims を取得する。
+
+    v2 (HTTP API): requestContext.authorizer.jwt.claims
+    v1 (REST API): requestContext.authorizer.claims
+    """
+    ctx = event.get("requestContext", {})
+    authorizer = ctx.get("authorizer", {})
+    # v2 形式を優先
+    jwt_block = authorizer.get("jwt", {})
+    if jwt_block:
+        return jwt_block.get("claims", {})
+    # v1 フォールバック
+    return authorizer.get("claims", {})
+
+
 def get_caller_user_id(event: dict) -> str:
     """API Gateway の requestContext から Cognito ユーザー ID を取得する。
 
-    Cognito Authorizer を使用している場合は requestContext.authorizer.claims に
-    ユーザー情報が含まれる。
+    HTTP API v2 / REST API v1 の両形式に対応する。
     """
-    ctx = event.get("requestContext", {})
-    claims = ctx.get("authorizer", {}).get("claims", {})
+    claims = _get_claims(event)
     user_id = claims.get("sub", "")
     if not user_id:
         raise PermissionError("Unauthenticated request")
@@ -35,13 +49,29 @@ def get_caller_user_id(event: dict) -> str:
 
 
 def get_caller_groups(event: dict) -> list[str]:
-    """呼び出し元が所属する Cognito グループのリストを返す。"""
-    ctx = event.get("requestContext", {})
-    claims = ctx.get("authorizer", {}).get("claims", {})
-    groups_str = claims.get("cognito:groups", "")
-    if not groups_str:
+    """呼び出し元が所属する Cognito グループのリストを返す。
+
+    v2 JWT では cognito:groups が JSON 配列文字列 '["admin","user"]' で来る場合がある。
+    """
+    claims = _get_claims(event)
+    groups_val = claims.get("cognito:groups", "")
+    if not groups_val:
         return []
-    return [g.strip() for g in groups_str.split(",")]
+    # JWT パーサーが既にリストに変換済みの場合
+    if isinstance(groups_val, list):
+        return [g for g in groups_val if isinstance(g, str)]
+    # JSON 配列形式（v2）をパース
+    if groups_val.startswith("["):
+        try:
+            parsed = json.loads(groups_val)
+            return [g.strip() for g in parsed if isinstance(g, str)]
+        except json.JSONDecodeError:
+            pass
+        # API Gateway HTTP API 形式: "[admin user]"（スペース区切り・括弧付き）
+        inner = groups_val[1:-1].strip()
+        return [g for g in inner.split() if g]
+    # カンマ区切り形式（v1）
+    return [g.strip() for g in groups_val.split(",") if g.strip()]
 
 
 def is_admin(event: dict) -> bool:

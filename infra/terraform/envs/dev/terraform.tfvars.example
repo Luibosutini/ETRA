@@ -1,4 +1,22 @@
+# Cognito コールバック URL
+cognito_callback_urls = [
+  "https://<cloudfront-domain>/portal/",
+  "https://<cloudfront-domain>/ohif/callback",
+  "http://localhost:5173/portal/",
+]
+cognito_logout_urls = [
+  "https://<cloudfront-domain>/portal/",
+  "https://<cloudfront-domain>/ohif/",
+  "http://localhost:5173/portal/",
+]
+
 alert_emails          = ["admin@example.com"]
 monthly_budget_usd    = "100"
 ec2_instance_type     = "t3.xlarge"
 allowed_email_domains = ["your-university.ac.jp"]
+
+# メンバーのホワイトリスト
+allowed_emails = [
+  "user1@your-university.ac.jp",
+  "user2@your-university.ac.jp",
+]

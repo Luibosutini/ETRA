@@ -18,6 +18,21 @@ resource "aws_s3_bucket" "logs" {
 }
 
 # ─────────────────────────────────────────
+# CORS（workspace バケット: presigned PUT を許可）
+# ─────────────────────────────────────────
+resource "aws_s3_bucket_cors_configuration" "workspace" {
+  bucket = aws_s3_bucket.workspace.id
+
+  cors_rule {
+    allowed_headers = ["*"]
+    allowed_methods = ["GET", "PUT"]
+    allowed_origins = var.allowed_origins
+    expose_headers  = ["ETag"]
+    max_age_seconds = 3000
+  }
+}
+
+# ─────────────────────────────────────────
 # バージョニング
 # ─────────────────────────────────────────
 resource "aws_s3_bucket_versioning" "workspace" {

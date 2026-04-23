@@ -127,6 +127,63 @@ resource "aws_vpc_endpoint" "lambda" {
   tags = { Name = "${local.name_prefix}-vpce-lambda" }
 }
 
+# EC2 API エンドポイント（start/stop/status_compute Lambda が必要）
+resource "aws_vpc_endpoint" "ec2" {
+  vpc_id              = aws_vpc.this.id
+  service_name        = "com.amazonaws.${var.region}.ec2"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = [for s in aws_subnet.private : s.id]
+  security_group_ids  = [aws_security_group.vpce.id]
+  private_dns_enabled = true
+
+  tags = { Name = "${local.name_prefix}-vpce-ec2" }
+}
+
+# CloudWatch Logs エンドポイント（logs_api Lambda が必要）
+resource "aws_vpc_endpoint" "logs" {
+  vpc_id              = aws_vpc.this.id
+  service_name        = "com.amazonaws.${var.region}.logs"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = [for s in aws_subnet.private : s.id]
+  security_group_ids  = [aws_security_group.vpce.id]
+  private_dns_enabled = true
+
+  tags = { Name = "${local.name_prefix}-vpce-logs" }
+}
+
+# cognito-idp エンドポイントがサポートする AZ を動的に取得
+data "aws_vpc_endpoint_service" "cognito_idp" {
+  service = "cognito-idp"
+}
+
+# Cognito IDP エンドポイント（admin_api Lambda が必要）
+# サービスがサポートする AZ のサブネットのみ指定（全 AZ 対応ではない）
+resource "aws_vpc_endpoint" "cognito_idp" {
+  vpc_id            = aws_vpc.this.id
+  service_name      = "com.amazonaws.${var.region}.cognito-idp"
+  vpc_endpoint_type = "Interface"
+  subnet_ids = [
+    for s in aws_subnet.private : s.id
+    if contains(data.aws_vpc_endpoint_service.cognito_idp.availability_zones, s.availability_zone)
+  ]
+  security_group_ids  = [aws_security_group.vpce.id]
+  private_dns_enabled = true
+
+  tags = { Name = "${local.name_prefix}-vpce-cognito-idp" }
+}
+
+# SNS エンドポイント（notify_status Lambda が必要）
+resource "aws_vpc_endpoint" "sns" {
+  vpc_id              = aws_vpc.this.id
+  service_name        = "com.amazonaws.${var.region}.sns"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = [for s in aws_subnet.private : s.id]
+  security_group_ids  = [aws_security_group.vpce.id]
+  private_dns_enabled = true
+
+  tags = { Name = "${local.name_prefix}-vpce-sns" }
+}
+
 # ─────────────────────────────────────────
 # Security Groups
 # ─────────────────────────────────────────

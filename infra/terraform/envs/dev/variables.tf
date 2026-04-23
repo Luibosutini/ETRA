@@ -24,6 +24,12 @@ variable "allowed_email_domains" {
   type        = list(string)
 }
 
+variable "allowed_emails" {
+  description = "登録を許可するメールアドレスのホワイトリスト（大学全体ドメインを使う場合に研究室メンバーを限定する）"
+  type        = list(string)
+  default     = []
+}
+
 variable "cognito_callback_urls" {
   type    = list(string)
   default = ["https://localhost:3000/callback"]

@@ -2,6 +2,9 @@ locals {
   name_prefix = "${var.project}-${var.env}"
 }
 
+data "aws_caller_identity" "current" {}
+data "aws_region" "current" {}
+
 # ─────────────────────────────────────────
 # Pre-signup Lambda トリガー
 # ─────────────────────────────────────────
@@ -37,6 +40,7 @@ resource "aws_lambda_function" "pre_signup" {
   environment {
     variables = {
       ALLOWED_EMAIL_DOMAINS = join(",", var.allowed_email_domains)
+      ALLOWED_EMAILS        = join(",", var.allowed_emails)
     }
   }
 }
@@ -51,6 +55,58 @@ resource "aws_lambda_permission" "cognito_pre_signup" {
   statement_id  = "AllowCognitoInvoke"
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.pre_signup.function_name
+  principal     = "cognito-idp.amazonaws.com"
+  source_arn    = aws_cognito_user_pool.this.arn
+}
+
+# ─────────────────────────────────────────
+# Post-confirmation Lambda トリガー
+# サインアップ完了後に user グループへ自動追加する
+# ─────────────────────────────────────────
+resource "aws_iam_role" "post_confirmation" {
+  name               = "${local.name_prefix}-cognito-post-confirmation"
+  assume_role_policy = data.aws_iam_policy_document.lambda_assume.json
+}
+
+resource "aws_iam_role_policy_attachment" "post_confirmation_logs" {
+  role       = aws_iam_role.post_confirmation.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+resource "aws_iam_role_policy" "post_confirmation_cognito" {
+  name = "${local.name_prefix}-post-confirmation-cognito"
+  role = aws_iam_role.post_confirmation.id
+  # user pool ARN を直接参照すると循環依存になるため data source で構築する
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = "cognito-idp:AdminAddUserToGroup"
+      Resource = "arn:aws:cognito-idp:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:userpool/*"
+    }]
+  })
+}
+
+resource "aws_lambda_function" "post_confirmation" {
+  function_name    = "${local.name_prefix}-cognito-post-confirmation"
+  role             = aws_iam_role.post_confirmation.arn
+  handler          = "cognito_post_confirmation.handler"
+  runtime          = "python3.11"
+  timeout          = 5
+  filename         = "${path.module}/pre_signup_placeholder.zip"
+  source_code_hash = filebase64sha256("${path.module}/pre_signup_placeholder.zip")
+  # USER_POOL_ID は Cognito トリガーの event.userPoolId に含まれるため不要
+}
+
+resource "aws_cloudwatch_log_group" "post_confirmation" {
+  name              = "/aws/lambda/${aws_lambda_function.post_confirmation.function_name}"
+  retention_in_days = 30
+}
+
+resource "aws_lambda_permission" "cognito_post_confirmation" {
+  statement_id  = "AllowCognitoInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.post_confirmation.function_name
   principal     = "cognito-idp.amazonaws.com"
   source_arn    = aws_cognito_user_pool.this.arn
 }
@@ -97,11 +153,12 @@ resource "aws_cognito_user_pool" "this" {
   }
 
   admin_create_user_config {
-    allow_admin_create_user_only = true
+    allow_admin_create_user_only = false
   }
 
   lambda_config {
-    pre_sign_up = aws_lambda_function.pre_signup.arn
+    pre_sign_up       = aws_lambda_function.pre_signup.arn
+    post_confirmation = aws_lambda_function.post_confirmation.arn
   }
 
   tags = { Name = "${local.name_prefix}-user-pool" }

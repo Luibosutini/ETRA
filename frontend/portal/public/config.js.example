@@ -1,0 +1,9 @@
+window.__ETRA_CONFIG__ = {
+  apiEndpoint: 'https://<api-id>.execute-api.<region>.amazonaws.com',
+  cognitoAuthority: 'https://cognito-idp.<region>.amazonaws.com/<region>_<pool-id>',
+  cognitoHostedUiDomain: 'https://<auth-domain>.auth.<region>.amazoncognito.com',
+  cognitoClientId: '<cognito-client-id>',
+  cognitoRedirectUri: 'https://<cloudfront-domain>/portal/',
+  cognitoPostLogoutUri: 'https://<cloudfront-domain>/portal/',
+  region: '<region>',
+}

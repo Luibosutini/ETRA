@@ -29,10 +29,13 @@
 - **OHIF Viewer 3.x**: Web ブラウザ上での DICOM 閲覧。CloudFront 経由で配信。
 
 ### 認証・認可層
-- **Amazon Cognito**: ユーザープール管理、Pre-signup Lambda によるメールドメイン制限。
+- **Amazon Cognito**: ユーザープール管理。
+  - セルフサインアップ有効。Pre-signup Lambda がドメイン＋メールホワイトリストで制限
   - `admin` グループ: 全機能へのアクセス
   - `user` グループ: 自分のワークスペース・解析実行のみ
 - **認証フロー**: Authorization Code Flow with PKCE（`generate_secret = false`）
+- **解析ポータル**: `frontend/portal/` (Vite + React)。CloudFront の `/portal/` パスで配信
+- **API Gateway v2 (HTTP API)**: Cognito JWT Authorizer によりトークンを自動検証。Lambda へのエントリーポイント
 
 ### API・自動化層
 - **AWS Lambda (Python 3.11)**
@@ -54,8 +57,14 @@
   - 起動テンプレートによりオンデマンド起動
   - JupyterLab は systemd サービスとして起動（`127.0.0.1:8888`）
   - 起動時に S3 から personal/ を同期、停止前に S3 へ同期
-- **Amazon DCV**: EC2 上の GUI セッション配信（MATLAB ライセンス確定後に有効化）
+- **Amazon DCV**: EC2 上の GUI セッション配信。App Designer 使用のため必須。DCV は EC2 上では無償。
 - **SSM ポートフォワーディング**: JupyterLab・DCV へのアクセス経路
+
+**MATLAB ライセンス方針（確定）**
+- 東海大学 Campus-Wide **Individual** ライセンス。クラウド（EC2）利用可。
+- ライセンスサーバー不要。VPN 不要。各ユーザーが MathWorks アカウントで個別認証。
+- 同時利用制限なし。全製品（Simulink / Parallel Computing Toolbox 等）利用可。
+- EC2 起動後、ユーザーは DCV セッション内で `matlab` を起動しアカウント認証を行う。
 
 ### ストレージ層
 
@@ -122,14 +131,15 @@ infra/terraform/
 │   ├── vpc/         # VPC・サブネット・VPC Endpoints・Security Groups
 │   ├── s3/          # ワークスペース・フロントエンド・ログバケット
 │   ├── iam/         # Lambda・EC2 実行ロール
-│   ├── cognito/     # ユーザープール・Pre-signup Lambda
+│   ├── cognito/     # ユーザープール・Pre-signup Lambda（ドメイン＋ホワイトリスト）
 │   ├── healthimaging/ # HealthImaging データストア（awscc プロバイダー）
 │   ├── ec2/         # 起動テンプレート・userdata
 │   ├── lambda/      # 5 関数デプロイ
 │   ├── eventbridge/ # 自動停止スケジュール
 │   ├── cloudtrail/  # 監査ログ
 │   ├── cloudwatch/  # アラーム・SNS・Budgets
-│   └── cloudfront/  # CloudFront Distribution・WAF・OAC
+│   ├── cloudfront/  # CloudFront Distribution・WAF・OAC（ポータル配信ルール含む）
+│   └── apigateway/  # HTTP API v2・Cognito JWT Authorizer・Lambda 統合
 └── envs/
     └── dev/         # dev 環境エントリーポイント
 ```

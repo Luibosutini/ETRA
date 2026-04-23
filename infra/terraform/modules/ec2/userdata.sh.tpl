@@ -27,6 +27,36 @@ dnf install -y \
   python3.11-pip \
   python3.11-devel
 
+# ─────────────────────────────────────────
+# デスクトップ環境（XFCE）
+# MATLAB App Designer の GUI に必要
+# ─────────────────────────────────────────
+dnf install -y \
+  xorg-x11-server-Xorg \
+  xorg-x11-xinit \
+  xorg-x11-utils \
+  dbus-x11 \
+  mesa-dri-drivers \
+  mesa-libGL \
+  libXrender \
+  libXtst \
+  libXi \
+  libXext \
+  libX11 \
+  gtk3 \
+  gtk2 \
+  xterm
+
+# XFCE（Amazon Linux 2023 で利用可能な場合）
+dnf groupinstall -y "Xfce" 2>/dev/null || \
+  dnf install -y \
+    xfce4-session \
+    xfwm4 \
+    xfce4-panel \
+    xfdesktop \
+    xfce4-terminal \
+    Thunar 2>/dev/null || true
+
 alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
 alternatives --install /usr/bin/pip3 pip3 /usr/bin/pip3.11 1
 
@@ -157,12 +187,73 @@ systemctl enable amazon-ssm-agent
 systemctl start amazon-ssm-agent
 
 # ─────────────────────────────────────────
-# Amazon DCV セットアップ予約
-# MATLAB GUI が必要になった時点で有効化する
+# Amazon DCV Server
+# MATLAB App Designer GUI セッションを提供する
 # ─────────────────────────────────────────
-# TODO: MATLAB ライセンス・インスタンスタイプ確定後に以下を有効化
-# rpm --import https://d1uj6qtbmh3dt5.cloudfront.net/NICE-GPG-KEY
-# dnf install -y nice-dcv-server nice-dcv-web-viewer
-# systemctl enable --now dcvserver
+
+# GPG キーをインポート
+rpm --import https://d1uj6qtbmh3dt5.cloudfront.net/NICE-GPG-KEY
+
+# NICE DCV パッケージをダウンロード（RHEL9/AL2023 向け el9 パッケージ）
+# バージョンは https://www.nice-dcv.com/ で最新を確認してください
+DCV_VERSION="2024.0-19030"
+DCV_OS="el9"
+DCV_ARCH="x86_64"
+DCV_PKG="nice-dcv-$${DCV_VERSION}-$${DCV_OS}-$${DCV_ARCH}"
+
+curl -fsSL -o "/tmp/$${DCV_PKG}.tgz" \
+  "https://d1uj6qtbmh3dt5.cloudfront.net/$${DCV_PKG}.tgz"
+tar -xzf "/tmp/$${DCV_PKG}.tgz" -C /tmp/
+cd "/tmp/$${DCV_PKG}"
+
+dnf install -y \
+  nice-dcv-server-*.$${DCV_OS}.$${DCV_ARCH}.rpm \
+  nice-xdcv-*.$${DCV_OS}.$${DCV_ARCH}.rpm \
+  nice-dcv-web-viewer-*.rpm
+
+cd / && rm -rf "/tmp/$${DCV_PKG}" "/tmp/$${DCV_PKG}.tgz"
+
+# DCV 設定
+# - バーチャルセッションを自動作成（ec2-user 所有）
+# - ポートは 8443 のデフォルト（SSM ポートフォワード経由でのみアクセス）
+# - 認証は OS 認証（system）。SSM がすでに AWS IAM で利用者を確認済み
+cat >> /etc/dcv/dcv.conf <<'EOF'
+
+[session-management]
+create-session = true
+
+[session-management/automatic-console-session]
+owner = "ec2-user"
+storage-root = "/home/ec2-user/workspace"
+
+[display]
+target-fps = 15
+
+[connectivity]
+# web-listening-port = 8443 はデフォルト値
+idle-timeout = 240
+EOF
+
+# DCV サービスを有効化
+systemctl enable --now dcvserver
+
+# セッション接続トークン生成スクリプト
+# 管理者が SSM セッション内で実行し、ワンタイムURL を利用者に伝える
+cat > /usr/local/bin/dcv-token <<'EOF'
+#!/bin/bash
+# DCV 接続用トークンを生成してURLを表示する
+# 使用方法: sudo dcv-token
+set -euo pipefail
+TOKEN=$(dcv generate-session-token main 2>/dev/null | grep -oP '(?<=authToken=)[^&]+' || \
+        dcv generate-session-token main 2>&1 | tail -1)
+echo ""
+echo "=== DCV 接続 URL ==="
+echo "ブラウザで以下にアクセス（SSM ポートフォワード済みの場合のみ有効）:"
+echo "https://localhost:8443/?authToken=$${TOKEN}#main"
+echo ""
+echo "トークン有効期限: 30 秒"
+echo "===================="
+EOF
+chmod +x /usr/local/bin/dcv-token
 
 echo "=== ETRA analysis node bootstrap complete: $(date) ==="

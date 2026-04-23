@@ -13,3 +13,7 @@ def s3_client():
 
 def sns_client():
     return boto3.client("sns", region_name=os.environ["REGION"])
+
+
+def cloudwatch_client():
+    return boto3.client("cloudwatch", region_name=os.environ["REGION"])

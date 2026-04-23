@@ -21,18 +21,18 @@ terraform apply
 
 ### ステップ 2: 環境設定ファイルの準備
 
-```bash
-cp config/dev/terraform.tfvars.example config/dev/terraform.tfvars
-```
-
-`terraform.tfvars` を編集して以下を設定する（リポジトリにコミットしないこと）:
+`infra/terraform/envs/dev/terraform.tfvars` を編集して以下を設定する（リポジトリにコミットしないこと）:
 
 ```hcl
-allowed_email_domains  = ["your-institution.ac.jp"]
+allowed_email_domains  = ["your-institution.ac.jp"]   # 大学のドメイン
+allowed_emails         = [                             # 研究室メンバーのアドレス
+  "alice@your-institution.ac.jp",
+  "bob@your-institution.ac.jp",
+]
 alert_emails           = ["admin@your-institution.ac.jp"]
 monthly_budget_usd     = "100"
-cognito_callback_urls  = ["https://<cloudfront-domain>/callback"]
-cognito_logout_urls    = ["https://<cloudfront-domain>/logout"]
+cognito_callback_urls  = ["https://<cloudfront-domain>/portal/"]
+cognito_logout_urls    = ["https://<cloudfront-domain>/portal/"]
 ```
 
 ### ステップ 3: インフラデプロイ
@@ -99,10 +99,21 @@ cd ../scripts/deploy
 `alert_emails` に設定したアドレスに AWS から確認メールが届く。
 メール内の「Confirm subscription」リンクをクリックする。
 
+### ステップ 7.5: 解析ポータルデプロイ
+
+```bash
+bash scripts/deploy/deploy_portal.sh
+```
+
+terraform.tfvars の `cognito_callback_urls` / `cognito_logout_urls` に
+`https://<cloudfront-domain>/portal/` が含まれていることを確認してから実行すること。
+
 ### ステップ 8: 動作確認チェックリスト
 
 - [ ] CloudFront URL で OHIF Viewer が表示される
-- [ ] Cognito でログインできる
+- [ ] `https://<cloudfront-domain>/portal/` で解析ポータルが表示される
+- [ ] ポータルのサインアップ画面でホワイトリスト外アドレスが拒否される
+- [ ] ホワイトリスト内アドレスで登録・ログインできる
 - [ ] Lambda 関数が CloudWatch Logs にロググループを作成している
 - [ ] EventBridge スケジュールが有効になっている
 - [ ] AWS Budgets のアラートが設定されている
@@ -111,6 +122,38 @@ cd ../scripts/deploy
 ---
 
 ## 日常運用
+
+### メンバー追加・削除
+
+**追加**（`terraform.tfvars` を編集して apply するだけ）:
+
+```hcl
+# infra/terraform/envs/dev/terraform.tfvars
+allowed_emails = [
+  "alice@your-institution.ac.jp",
+  "bob@your-institution.ac.jp",
+  "carol@your-institution.ac.jp",  # ← 追加
+]
+```
+
+```bash
+cd infra/terraform/envs/dev && terraform apply
+```
+
+apply 後、メンバーはポータルのサインアップ画面から自分でアカウントを作成できる。
+登録完了後、管理者が Cognito コンソールでグループ（`admin` / `user`）に追加する。
+
+**削除**（アクセス停止）:
+
+```bash
+# ホワイトリストから削除して apply（新規登録を防ぐ）
+# 既存アカウントは Cognito コンソールで無効化する
+aws cognito-idp admin-disable-user \
+  --user-pool-id <pool-id> \
+  --username <email>
+```
+
+---
 
 ### 解析ノード起動・停止
 

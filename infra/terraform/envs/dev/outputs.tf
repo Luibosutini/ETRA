@@ -1,11 +1,16 @@
 output "vpc_id"                  { value = module.vpc.vpc_id }
 output "workspace_bucket_name"   { value = module.s3.workspace_bucket_name }
+output "frontend_bucket_name"    { value = module.s3.frontend_bucket_name }
 output "cognito_user_pool_id"    { value = module.cognito.user_pool_id }
 output "cognito_client_id"       { value = module.cognito.client_id }
 output "cognito_auth_domain"     { value = module.cognito.auth_domain }
 output "healthimaging_datastore" { value = module.healthimaging.datastore_id }
 output "launch_template_id"      { value = module.ec2.launch_template_id }
-output "lambda_function_arns"    { value = module.lambda.function_arns }
+output "lambda_function_arns"              { value = module.lambda.function_arns }
+output "lambda_function_names"             { value = module.lambda.function_names }
+output "cognito_pre_signup_function_name"        { value = module.cognito.pre_signup_function_name }
+output "cognito_post_confirmation_function_name" { value = module.cognito.post_confirmation_function_name }
 output "alerts_topic_arn"        { value = module.cloudwatch.alerts_topic_arn }
 output "cloudfront_domain"       { value = module.cloudfront.distribution_domain }
 output "cloudfront_distribution" { value = module.cloudfront.distribution_id }
+output "api_endpoint"            { value = module.apigateway.api_endpoint }

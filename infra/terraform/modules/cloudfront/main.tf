@@ -48,6 +48,29 @@ resource "aws_wafv2_web_acl" "viewer" {
     }
   }
 
+  # AWS マネージドルール: Log4Shell / 既知の不正入力ブロック（CVE-2021-44228 等）
+  rule {
+    name     = "AWSManagedRulesKnownBadInputsRuleSet"
+    priority = 15
+
+    override_action {
+      none {}
+    }
+
+    statement {
+      managed_rule_group_statement {
+        name        = "AWSManagedRulesKnownBadInputsRuleSet"
+        vendor_name = "AWS"
+      }
+    }
+
+    visibility_config {
+      cloudwatch_metrics_enabled = true
+      metric_name                = "${local.name_prefix}-known-bad-inputs"
+      sampled_requests_enabled   = true
+    }
+  }
+
   # AWS マネージドルール: 既知の不正 IP ブロック
   rule {
     name     = "AWSManagedRulesAmazonIpReputationList"
@@ -92,6 +115,44 @@ resource "aws_cloudfront_origin_access_control" "frontend" {
   origin_access_control_origin_type = "s3"
   signing_behavior                  = "always"
   signing_protocol                  = "sigv4"
+}
+
+# ─────────────────────────────────────────
+# CloudFront Function: /portal と /portal/ を index.html にリライト
+# S3 はディレクトリインデックスを提供しないため必要
+# ─────────────────────────────────────────
+resource "aws_cloudfront_function" "portal_rewrite" {
+  provider = aws.us_east_1
+  name     = "${local.name_prefix}-portal-rewrite"
+  runtime  = "cloudfront-js-2.0"
+  publish  = true
+  code     = <<-EOF
+    function handler(event) {
+      var uri = event.request.uri;
+      if (uri === '/portal' || uri === '/portal/') {
+        event.request.uri = '/portal/index.html';
+      }
+      return event.request;
+    }
+  EOF
+}
+
+# OHIF SPA ルーティング: 拡張子なしパス → /ohif/index.html にリライト
+resource "aws_cloudfront_function" "ohif_rewrite" {
+  provider = aws.us_east_1
+  name     = "${local.name_prefix}-ohif-rewrite"
+  runtime  = "cloudfront-js-2.0"
+  publish  = true
+  code     = <<-EOF
+    function handler(event) {
+      var uri = event.request.uri;
+      var lastSegment = uri.split('/').pop();
+      if (lastSegment === '' || lastSegment.indexOf('.') === -1) {
+        event.request.uri = '/ohif/index.html';
+      }
+      return event.request;
+    }
+  EOF
 }
 
 # ─────────────────────────────────────────
@@ -146,6 +207,199 @@ resource "aws_cloudfront_distribution" "viewer" {
     min_ttl     = 31536000
     default_ttl = 31536000
     max_ttl     = 31536000
+  }
+
+  # /portal（末尾スラッシュなし）→ /portal/index.html にリライト
+  ordered_cache_behavior {
+    path_pattern           = "/portal"
+    target_origin_id       = "S3-${var.frontend_bucket_name}"
+    viewer_protocol_policy = "redirect-to-https"
+    allowed_methods        = ["GET", "HEAD"]
+    cached_methods         = ["GET", "HEAD"]
+    compress               = true
+
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.portal_rewrite.arn
+    }
+
+    forwarded_values {
+      query_string = false
+      cookies { forward = "none" }
+    }
+
+    min_ttl     = 0
+    default_ttl = 0
+    max_ttl     = 0
+  }
+
+  # /portal/（末尾スラッシュあり）→ /portal/index.html にリライト
+  ordered_cache_behavior {
+    path_pattern           = "/portal/"
+    target_origin_id       = "S3-${var.frontend_bucket_name}"
+    viewer_protocol_policy = "redirect-to-https"
+    allowed_methods        = ["GET", "HEAD"]
+    cached_methods         = ["GET", "HEAD"]
+    compress               = true
+
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.portal_rewrite.arn
+    }
+
+    forwarded_values {
+      query_string = false
+      cookies { forward = "none" }
+    }
+
+    min_ttl     = 0
+    default_ttl = 0
+    max_ttl     = 0
+  }
+
+  # ポータル index.html: キャッシュ無効（常に最新を返す）
+  ordered_cache_behavior {
+    path_pattern           = "/portal/index.html"
+    target_origin_id       = "S3-${var.frontend_bucket_name}"
+    viewer_protocol_policy = "redirect-to-https"
+    allowed_methods        = ["GET", "HEAD"]
+    cached_methods         = ["GET", "HEAD"]
+    compress               = true
+
+    forwarded_values {
+      query_string = false
+      cookies { forward = "none" }
+    }
+
+    min_ttl     = 0
+    default_ttl = 0
+    max_ttl     = 0
+  }
+
+  # ポータル config.js: キャッシュ無効（デプロイ毎に差し替え）
+  ordered_cache_behavior {
+    path_pattern           = "/portal/config.js"
+    target_origin_id       = "S3-${var.frontend_bucket_name}"
+    viewer_protocol_policy = "redirect-to-https"
+    allowed_methods        = ["GET", "HEAD"]
+    cached_methods         = ["GET", "HEAD"]
+    compress               = true
+
+    forwarded_values {
+      query_string = false
+      cookies { forward = "none" }
+    }
+
+    min_ttl     = 0
+    default_ttl = 0
+    max_ttl     = 0
+  }
+
+  # ポータル静的アセット（Vite ビルド成果物、コンテンツハッシュ付き）は長期キャッシュ
+  ordered_cache_behavior {
+    path_pattern           = "/portal/assets/*"
+    target_origin_id       = "S3-${var.frontend_bucket_name}"
+    viewer_protocol_policy = "redirect-to-https"
+    allowed_methods        = ["GET", "HEAD"]
+    cached_methods         = ["GET", "HEAD"]
+    compress               = true
+
+    forwarded_values {
+      query_string = false
+      cookies { forward = "none" }
+    }
+
+    min_ttl     = 31536000
+    default_ttl = 31536000
+    max_ttl     = 31536000
+  }
+
+  # ─── OHIF Viewer (/ohif/*) ───────────────────────────
+
+  # /ohif（末尾スラッシュなし）→ /ohif/index.html
+  ordered_cache_behavior {
+    path_pattern           = "/ohif"
+    target_origin_id       = "S3-${var.frontend_bucket_name}"
+    viewer_protocol_policy = "redirect-to-https"
+    allowed_methods        = ["GET", "HEAD"]
+    cached_methods         = ["GET", "HEAD"]
+    compress               = true
+
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.ohif_rewrite.arn
+    }
+
+    forwarded_values {
+      query_string = false
+      cookies { forward = "none" }
+    }
+
+    min_ttl     = 0
+    default_ttl = 0
+    max_ttl     = 0
+  }
+
+  # OHIF app-config.js: キャッシュ無効
+  ordered_cache_behavior {
+    path_pattern           = "/ohif/config/app-config.js"
+    target_origin_id       = "S3-${var.frontend_bucket_name}"
+    viewer_protocol_policy = "redirect-to-https"
+    allowed_methods        = ["GET", "HEAD"]
+    cached_methods         = ["GET", "HEAD"]
+    compress               = true
+
+    forwarded_values {
+      query_string = false
+      cookies { forward = "none" }
+    }
+
+    min_ttl     = 0
+    default_ttl = 0
+    max_ttl     = 0
+  }
+
+  # OHIF 静的アセット: 長期キャッシュ
+  ordered_cache_behavior {
+    path_pattern           = "/ohif/static/*"
+    target_origin_id       = "S3-${var.frontend_bucket_name}"
+    viewer_protocol_policy = "redirect-to-https"
+    allowed_methods        = ["GET", "HEAD"]
+    cached_methods         = ["GET", "HEAD"]
+    compress               = true
+
+    forwarded_values {
+      query_string = false
+      cookies { forward = "none" }
+    }
+
+    min_ttl     = 31536000
+    default_ttl = 31536000
+    max_ttl     = 31536000
+  }
+
+  # OHIF その他（SPA ルーティング含む）
+  ordered_cache_behavior {
+    path_pattern           = "/ohif/*"
+    target_origin_id       = "S3-${var.frontend_bucket_name}"
+    viewer_protocol_policy = "redirect-to-https"
+    allowed_methods        = ["GET", "HEAD"]
+    cached_methods         = ["GET", "HEAD"]
+    compress               = true
+
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.ohif_rewrite.arn
+    }
+
+    forwarded_values {
+      query_string = true
+      cookies { forward = "none" }
+    }
+
+    min_ttl     = 0
+    default_ttl = 60
+    max_ttl     = 300
   }
 
   # SPA: 404 → index.html にフォールバック

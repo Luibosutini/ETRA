@@ -5,3 +5,7 @@ output "function_arns" {
 output "function_names" {
   value = { for k, v in aws_lambda_function.this : k => v.function_name }
 }
+
+output "function_invoke_arns" {
+  value = { for k, v in aws_lambda_function.this : k => v.invoke_arn }
+}

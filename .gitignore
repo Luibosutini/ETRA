@@ -27,6 +27,8 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.coverage
+.coverage.*
 .venv/
 dist/
 *.egg-info/
@@ -64,6 +66,8 @@ Thumbs.db
 *.key
 .env
 .env.*
+!.env.example
+frontend/portal/public/config.js
 
 # ─────────────────────────────────────────
 # Claude Code 自動メモリ（ローカル専用）

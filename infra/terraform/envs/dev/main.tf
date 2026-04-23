@@ -72,6 +72,10 @@ module "s3" {
   source  = "../../modules/s3"
   project = var.project
   env     = var.env
+  allowed_origins = concat(
+    ["http://localhost:5173"],
+    ["https://${module.cloudfront.distribution_domain}"]
+  )
 }
 
 # ─────────────────────────────────────────
@@ -84,6 +88,7 @@ module "iam" {
   env                    = var.env
   workspace_bucket_arn   = module.s3.workspace_bucket_arn
   notification_topic_arn = module.cloudwatch.alerts_topic_arn
+  cognito_user_pool_arn  = module.cognito.user_pool_arn
 }
 
 # ─────────────────────────────────────────
@@ -97,6 +102,7 @@ module "cognito" {
   callback_urls         = var.cognito_callback_urls
   logout_urls           = var.cognito_logout_urls
   allowed_email_domains = var.allowed_email_domains
+  allowed_emails        = var.allowed_emails
 }
 
 # ─────────────────────────────────────────
@@ -135,17 +141,25 @@ module "lambda" {
   region     = var.region
 
   role_arns = {
-    start_compute  = module.iam.lambda_start_compute_role_arn
-    stop_compute   = module.iam.lambda_stop_compute_role_arn
-    status_compute = module.iam.lambda_status_compute_role_arn
-    workspace_api  = module.iam.lambda_workspace_api_role_arn
-    notify_status  = module.iam.lambda_notify_status_role_arn
+    start_compute   = module.iam.lambda_start_compute_role_arn
+    stop_compute    = module.iam.lambda_stop_compute_role_arn
+    status_compute  = module.iam.lambda_status_compute_role_arn
+    workspace_api   = module.iam.lambda_workspace_api_role_arn
+    notify_status   = module.iam.lambda_notify_status_role_arn
+    admin_api       = module.iam.lambda_admin_api_role_arn
+    logs_api        = module.iam.lambda_logs_api_role_arn
+    cleanup_compute = module.iam.lambda_cleanup_compute_role_arn
+    connect_api     = module.iam.lambda_connect_api_role_arn
   }
+
+  ssm_connect_role_arn = module.iam.ssm_connect_user_role_arn
 
   private_subnet_ids     = module.vpc.private_subnet_ids
   lambda_sg_id           = module.vpc.lambda_sg_id
   workspace_bucket_name  = module.s3.workspace_bucket_name
   notification_topic_arn = module.cloudwatch.alerts_topic_arn
+  cognito_user_pool_id   = module.cognito.user_pool_id
+  launch_template_id     = module.ec2.launch_template_id
 }
 
 # ─────────────────────────────────────────
@@ -154,9 +168,9 @@ module "lambda" {
 module "eventbridge" {
   source = "../../modules/eventbridge"
 
-  project                 = var.project
-  env                     = var.env
-  stop_compute_lambda_arn = module.lambda.function_arns["stop_compute"]
+  project                    = var.project
+  env                        = var.env
+  cleanup_compute_lambda_arn = module.lambda.function_arns["cleanup_compute"]
 }
 
 # ─────────────────────────────────────────
@@ -181,6 +195,45 @@ module "cloudwatch" {
   alert_emails          = var.alert_emails
   lambda_function_names = module.lambda.function_names
   monthly_budget_usd    = var.monthly_budget_usd
+}
+
+# ─────────────────────────────────────────
+# API Gateway v2 (HTTP API)
+# ─────────────────────────────────────────
+module "apigateway" {
+  source = "../../modules/apigateway"
+
+  project = var.project
+  env     = var.env
+
+  cognito_user_pool_id = module.cognito.user_pool_id
+  cognito_client_id    = module.cognito.client_id
+  cognito_auth_domain  = module.cognito.auth_domain
+
+  lambda_invoke_arns = {
+    start_compute  = module.lambda.function_invoke_arns["start_compute"]
+    stop_compute   = module.lambda.function_invoke_arns["stop_compute"]
+    status_compute = module.lambda.function_invoke_arns["status_compute"]
+    workspace_api  = module.lambda.function_invoke_arns["workspace_api"]
+    admin_api      = module.lambda.function_invoke_arns["admin_api"]
+    logs_api       = module.lambda.function_invoke_arns["logs_api"]
+    connect_api    = module.lambda.function_invoke_arns["connect_api"]
+  }
+
+  lambda_function_names = {
+    start_compute  = module.lambda.function_names["start_compute"]
+    stop_compute   = module.lambda.function_names["stop_compute"]
+    status_compute = module.lambda.function_names["status_compute"]
+    workspace_api  = module.lambda.function_names["workspace_api"]
+    admin_api      = module.lambda.function_names["admin_api"]
+    logs_api       = module.lambda.function_names["logs_api"]
+    connect_api    = module.lambda.function_names["connect_api"]
+  }
+
+  allowed_origins = concat(
+    ["http://localhost:5173"],
+    ["https://${module.cloudfront.distribution_domain}"]
+  )
 }
 
 # ─────────────────────────────────────────

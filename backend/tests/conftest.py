@@ -37,7 +37,10 @@ def stopped_instance():
             InstanceType="t3.xlarge",
             TagSpecifications=[{
                 "ResourceType": "instance",
-                "Tags": [{"Key": "Project", "Value": "etra"}],
+                "Tags": [
+                    {"Key": "Project", "Value": "etra"},
+                    {"Key": "Owner", "Value": "user-001"},
+                ],
             }],
         )
         instance = instances[0]

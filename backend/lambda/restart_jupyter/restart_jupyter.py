@@ -40,8 +40,8 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     requested_instance_id = body.get("instance_id")
 
     try:
-        filters = [{"Name": f"tag:{TAG_KEY}", "Values": [TAG_VALUE]},
-                   {"Name": "instance-state-name", "Values": ["running"]}]
+        filters: list[Any] = [{"Name": f"tag:{TAG_KEY}", "Values": [TAG_VALUE]},
+                              {"Name": "instance-state-name", "Values": ["running"]}]
 
         # admin は instance_id 指定で任意インスタンスを対象にできる
         # 一般ユーザーは自分の Owner タグのインスタンスのみ
@@ -148,7 +148,7 @@ echo "=== jupyter repair done: $(date) ==="
 def _handle_dcv_token(user_id: str, groups: list[str]) -> dict[str, Any]:
     import secrets
     is_admin = "admin" in groups
-    filters = [
+    filters: list[Any] = [
         {"Name": f"tag:{TAG_KEY}", "Values": [TAG_VALUE]},
         {"Name": "instance-state-name", "Values": ["running"]},
     ]

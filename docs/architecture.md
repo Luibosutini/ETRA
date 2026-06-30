@@ -47,6 +47,7 @@
   | `status_compute` | EC2 状態照会 |
   | `workspace_api` | S3 ワークスペース CRUD |
   | `notify_status` | SNS 経由でメール通知 |
+  | `dicom_api` | HealthImaging スタディ一覧照会（SearchImageSets） |
 
 - **Amazon EventBridge**: 平日 22:00 JST に `stop_compute` を自動実行。
 - **AWS Systems Manager**: EC2 へのエージェントレスアクセス。inbound SG ルール不要。
@@ -87,19 +88,24 @@
 ## ネットワーク構成
 
 ```
-VPC (10.0.0.0/16)
-├── Public Subnets (10.0.101.0/24, 10.0.102.0/24)
+VPC (10.0.0.0/16)  ※ dev 環境は us-east-1a 単一 AZ
+├── Public Subnet  (10.0.101.0/24)
 │   └── Internet Gateway
 │
-└── Private Subnets (10.0.1.0/24, 10.0.2.0/24)
+└── Private Subnet (10.0.1.0/24)
     ├── EC2 解析ノード（inbound SG ルールなし）
-    ├── Lambda 関数
+    ├── Lambda 関数（VPC 内）
+    │   ├── start_compute / stop_compute / status_compute
+    │   └── workspace_api
     └── VPC Endpoints
-         ├── S3 (Gateway)
-         ├── SSM (Interface)
+         ├── S3 (Gateway)          ← 無料
+         ├── SSM (Interface)       ← EC2 SSM セッションに必須
          ├── SSMMessages (Interface)
          ├── EC2Messages (Interface)
-         └── Lambda (Interface)
+         └── EC2 (Interface)       ← compute Lambda が EC2 API を呼ぶために必要
+
+VPC 外 Lambda（AWS パブリックエンドポイント経由）:
+  admin_api / logs_api / cleanup_compute / connect_api / notify_status / dicom_api
 ```
 
 **EC2 アクセス経路**

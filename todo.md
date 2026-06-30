@@ -50,8 +50,9 @@
       ※ LogsPage.tsx + logs_api Lambda（GET /logs, GET /logs/events）を実装。admin のみ表示
 - [x] ポータルのグループ管理 UI（管理者が Cognito コンソール不要でグループ割り当て可能に）
       ※ AdminPage.tsx + admin_api Lambda（GET /admin/users, POST/DELETE /admin/users/{username}/groups/{group}）を実装
+- [x] ポータルの DICOM タブ（スタディ一覧 + OHIF Viewer iframe 埋め込み）
+      ※ DicomPage.tsx + dicom_api Lambda（GET /dicom/studies、HealthImaging SearchImageSets）を実装
 - [ ] JupyterLab ブラウザ直接接続（NLB + VPC Link 経由。現状は SSM コマンド表示で代替）
-- [ ] Connect タブ改善（案A: OS別接続スクリプトダウンロード .bat/.sh + 案B: 初回セットアップガイド埋め込み）
 
 ## バックエンド
 
@@ -86,7 +87,7 @@
 - [x] `start_compute.py` 改修（admin 制限撤廃。`Owner:<user_id>` タグで検索、インスタンスなければ Launch Template から `run_instances`）
 - [x] `stop_compute.py` 改修（admin 制限撤廃。`Owner:<user_id>` の自分のインスタンスのみ stop）
 - [x] `status_compute.py` 改修（一般ユーザーは自分のインスタンスのみ返す。admin は全台）
-- [x] `cleanup_compute.py` 新規作成（`backend/lambda/cleanup_compute/`。CPU < 10% が 30 分継続で stop、7 日間 stopped のインスタンスを terminate。15 分ごと EventBridge で実行）
+- [x] `cleanup_compute.py` 新規作成（`backend/lambda/cleanup_compute/`。CPU < 5% が 30 分継続で stop、7 日間 stopped のインスタンスを terminate。15 分ごと EventBridge で実行）
 
 ### フロントエンド
 - [x] `DashboardPage.tsx` 改修（起動・停止ボタンを一般ユーザーにも表示。admin は owner 列も表示）
@@ -105,11 +106,10 @@
 - [x] コスト上限アラート設定（AWS Budgets）
 - [x] 1 か月後コストレビュー計画
 - [x] terraform.tfvars 実値記入（`allowed_email_domains`, `allowed_emails`, `cognito_callback_urls` 等）
-- [x] SNS メール通知の承認
+- [x] SNS メール通知の承認（初回 apply 後に届く確認メールをクリック）
 - [x] terraform apply 実行（S3 CORS + admin_api / logs_api Lambda + VPC Endpoints + per-user 構成変更を一括適用）
 - [x] deploy_lambda.sh 実行（全 Lambda をデプロイ）
 - [x] deploy_portal.sh 実行（Admin / Logs タブ + per-user Dashboard を含む新ビルドをデプロイ）
-- [x] deploy_ohif.sh 実行（OHIF Viewer を S3/CloudFront にデプロイ）
 
 ---
 

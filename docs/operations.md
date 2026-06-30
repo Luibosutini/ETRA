@@ -285,6 +285,16 @@ aws ec2 describe-volumes \
   --query "Volumes[].{ID:VolumeId,Size:Size,Created:CreateTime}"
 ```
 
+### 実施済みコスト最適化（dev 環境）
+
+| 対象 | 変更内容 | 削減額（目安） |
+|------|---------|--------------|
+| VPC Interface Endpoint | lambda / logs / cognito_idp / sns を削除 | -$29/月 |
+| VPC AZ 数 | 2 AZ → 1 AZ（us-east-1a のみ） | -$15/月 |
+| **合計** | | **-$44/月** |
+
+> prod 環境では HA のため 2 AZ を維持すること。
+
 ### 1か月後コストレビュー計画
 
 運用開始から 1 か月後に以下を評価し、再設計の判断を行う。

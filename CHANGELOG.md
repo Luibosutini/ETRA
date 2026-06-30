@@ -8,6 +8,101 @@
 
 ## [Unreleased]
 
+### Fixed（DCV virtual session）
+
+- fix: DCV virtual session でログイン後に画面が遷移しない問題を修正。ec2-user の ~/.xsession を追加して XFCE を起動するようにし、console 専用の LightDM/Xvfb(:0) 設定を廃止。既存 AMI 向けに userdata でも ~/.xsession を保証しセッションを再作成するようにした。
+
+### Added（DICOM タブ）
+
+- **ポータルに DICOM タブを追加** (`frontend/portal/src/pages/DicomPage.tsx`, `App.tsx`, `api.ts`)
+  - HealthImaging のスタディ（ImageSet）一覧を表示し、患者 ID での絞り込み・ページネーションに対応
+  - 「開く」でポータル内 iframe に OHIF Viewer（`/ohif/viewer?StudyInstanceUIDs=...`）を埋め込み表示
+  - Cognito セッション切れ時の iframe 表示拒否に備え「新しいタブで開く」フォールバックリンクを併設
+
+- **dicom_api Lambda を追加** (`backend/lambda/dicom_api/dicom_api.py`)
+  - `GET /dicom/studies`: HealthImaging `SearchImageSets` でスタディ一覧を返す
+  - クエリ: `max_results`（1〜50、既定 25）/ `next_token` / `patient_id`（完全一致フィルタ）
+  - `shared/aws_clients.py` に `medical_imaging_client()` を追加
+  - テスト追加: `backend/tests/test_dicom_api.py`（moto が medical-imaging 非対応のため MagicMock 使用）
+
+- **Terraform に dicom_api を配線** (`modules/iam`, `modules/lambda`, `modules/apigateway`, `envs/dev/main.tf`)
+  - IAM: `medical-imaging:SearchImageSets` をデータストア ARN に限定したロールを追加
+  - Lambda: VPC 外配置（medical-imaging の VPC エンドポイントなし）、`DATASTORE_ID` 環境変数を注入
+  - API Gateway: `GET /dicom/studies` ルート（Cognito JWT Authorizer）
+  - `scripts/deploy/deploy_lambda.sh` に dicom_api のデプロイを追加
+
+### Added（Packer カスタム AMI）
+
+- **Packer による ETRA カスタム AMI ビルド基盤を追加** (`packer/`)
+  - EC2 がプライベートサブネット（NAT なし）で起動しても JupyterLab・DCV が確実に動作するようにするため、
+    ソフトウェアをビルド時（パブリックサブネットで一時起動）にベイクする
+  - `packer/etra-analysis.pkr.hcl`: amazon-ebs ビルダー定義
+  - `packer/variables.pkr.hcl`: Packer 変数定義
+  - `packer/scripts/01-base-packages.sh`: Python 3.11・開発ツールインストール
+  - `packer/scripts/02-desktop-xfce.sh`: XFCE デスクトップ環境インストール（MATLAB GUI 用）
+  - `packer/scripts/03-python-jupyter.sh`: JupyterLab・解析ライブラリインストール
+  - `packer/scripts/04-dcv-server.sh`: Amazon DCV Server インストール・設定
+  - `packer/scripts/05-systemd-services.sh`: systemd サービス定義（`ExecStartPre=-` 修正済み）
+  - `packer/scripts/06-helper-scripts.sh`: ws-sync-down/up・dcv-token スクリプト
+
+- **AMI ビルドスクリプトを追加** (`scripts/deploy/build_ami.sh`)
+  - `terraform output` からパブリックサブネット ID を自動取得して Packer を実行する
+
+### Changed（EC2・Terraform）
+
+- **userdata.sh.tpl を最小化** (`infra/terraform/modules/ec2/userdata.sh.tpl`)
+  - 全ソフトウェアインストール処理を削除。AMI にベイク済みのため不要
+  - インスタンス固有の設定（`/etc/etra/config.env`）の書き込みとサービス起動のみに縮小
+  - 起動時間の大幅短縮（5〜10 分 → 30 秒以内）
+
+- **`ami_id` 変数を必須化** (`infra/terraform/modules/ec2/variables.tf`)
+  - `default = ""` を削除し、AMI ID のバリデーションを追加
+  - `data.aws_ami` による最新 AL2023 の自動選択を廃止（AMI 固定による再現性確保のため）
+
+- **dev 環境に `ami_id` 変数を追加** (`infra/terraform/envs/dev/variables.tf`, `main.tf`)
+
+- **`public_subnet_id` output を追加** (`infra/terraform/envs/dev/outputs.tf`)
+  - `build_ami.sh` がパブリックサブネット ID を自動取得するために必要
+
+### Fixed（VPC コスト削減・バグ修正）
+
+- **ワークスペース ファイルダウンロード 500 エラー修正** (`frontend/portal/src/api.ts`)
+  - `encodeURIComponent(key)` がスラッシュを `%2F` にエンコードし API Gateway HTTP API のルーティングを破壊していた問題を修正
+  - `encodeWorkspaceKey()` ヘルパーを追加。スラッシュをパス区切りとして保持し各セグメントのみエンコードする
+  - 対象: `getDownloadUrl` / `getUploadUrl` / `deleteWorkspaceItem`
+
+- **workspace_api 例外処理の潜在バグ修正** (`backend/lambda/workspace_api/workspace_api.py`)
+  - `except s3.exceptions.NoSuchKey:` は `s3_client()` が失敗した場合に `NameError` を引き起こす可能性があった
+  - `botocore.exceptions.ClientError` でエラーコードを判定する正しい実装に変更
+
+- **connect_api ImportError 修正** (`backend/lambda/connect_api/connect_api.py`)
+  - `from shared.auth import get_user_id` が存在しない関数名でインポートエラーになっていた
+  - `get_caller_user_id` に修正（CloudWatch アラーム `etra-dev-lambda-connect_api-errors` の原因）
+
+### Changed（VPC コスト削減 / dev 環境最適化）
+
+- **dev 環境を AZ 1 本に統一** (`infra/terraform/envs/dev/main.tf`)
+  - `azs`: `["us-east-1a", "us-east-1b"]` → `["us-east-1a"]`
+  - `private_subnets`: `["10.0.1.0/24", "10.0.2.0/24"]` → `["10.0.1.0/24"]`
+  - `public_subnets`: `["10.0.101.0/24", "10.0.102.0/24"]` → `["10.0.101.0/24"]`
+  - Interface Endpoint を 2 AZ → 1 AZ へ削減（約 -$15/月）
+
+- **不要な VPC Interface Endpoints 削除** (`infra/terraform/modules/vpc/main.tf`)
+  - `lambda` Endpoint 削除: API Gateway / EventBridge は内部経路で Lambda を invoke するため不要
+  - `logs` Endpoint 削除: Lambda ランタイムのログ転送は内部経路。logs_api は既に VPC 外のため不要
+  - `cognito_idp` Endpoint 削除: admin_api は VPC 外。VPC 内 Lambda は Cognito を呼ばない
+  - `sns` Endpoint 削除: notify_status を VPC 外に移動済みのため不要
+  - 残存 Interface Endpoints: ssm / ssmmessages / ec2messages / ec2（EC2 SSM 接続・EC2 API に必須）
+  - 削減額: 最大 -$44/月（4 Endpoint 削除 + AZ 半減の合計）
+
+- **notify_status Lambda を VPC 外に移動** (`infra/terraform/modules/lambda/main.tf`)
+  - `no_vpc_functions` に `notify_status` を追加
+  - notify_status は SNS のみ使用し VPC 内リソース（EC2・S3）へのアクセスは不要
+  - これにより SNS VPC Endpoint が不要になり削除可能となった
+  - コメントを実態に合わせて更新
+
+---
+
 ### Fixed（デプロイ後バグ修正）
 
 - **`cognito:groups` パース修正** (`backend/shared/auth.py`)

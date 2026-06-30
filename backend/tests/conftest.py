@@ -20,6 +20,7 @@ def aws_env(monkeypatch):
     monkeypatch.setenv("ANALYSIS_INSTANCE_TAG_VALUE", "etra")
     monkeypatch.setenv("WORKSPACE_BUCKET", "test-workspace")
     monkeypatch.setenv("NOTIFICATION_TOPIC_ARN", "")
+    monkeypatch.setenv("DATASTORE_ID", "datastore-test-001")
 
 
 # ─────────────────────────────────────────

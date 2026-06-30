@@ -13,6 +13,8 @@ import sys
 
 sys.path.insert(0, "/opt/python")
 
+import boto3
+
 from shared.aws_clients import ec2_client
 from shared.auth import get_caller_user_id, is_admin
 from shared.response import bad_request, forbidden, not_found, ok, server_error
@@ -24,7 +26,7 @@ TAG_KEY = os.environ.get("ANALYSIS_INSTANCE_TAG_KEY", "Project")
 TAG_VALUE = os.environ.get("ANALYSIS_INSTANCE_TAG_VALUE", "")
 
 
-def _instance_summary(instance: dict) -> dict:
+def _instance_summary(instance: dict, ssm_connected_ids: set) -> dict:
     tags = {t["Key"]: t["Value"] for t in instance.get("Tags", [])}
     return {
         "instance_id": instance["InstanceId"],
@@ -34,7 +36,21 @@ def _instance_summary(instance: dict) -> dict:
         "name": tags.get("Name", ""),
         "owner": tags.get("Owner", ""),
         "launch_time": instance["LaunchTime"].isoformat() if instance.get("LaunchTime") else None,
+        "ssm_connected": instance["InstanceId"] in ssm_connected_ids,
     }
+
+
+def _get_ssm_connected_ids(instance_ids: list) -> set:
+    if not instance_ids:
+        return set()
+    try:
+        ssm = boto3.client("ssm")
+        resp = ssm.describe_instance_information(
+            Filters=[{"Key": "InstanceIds", "Values": instance_ids}]
+        )
+        return {i["InstanceId"] for i in resp.get("InstanceInformationList", [])}
+    except Exception:
+        return set()
 
 
 def handler(event: dict, context: object) -> dict:
@@ -71,12 +87,15 @@ def handler(event: dict, context: object) -> dict:
                 ]
             )
 
-        instances = [
-            _instance_summary(i)
+        raw_instances = [
+            i
             for r in resp["Reservations"]
             for i in r["Instances"]
             if i["State"]["Name"] != "terminated"
         ]
+        running_ids = [i["InstanceId"] for i in raw_instances if i["State"]["Name"] == "running"]
+        ssm_connected_ids = _get_ssm_connected_ids(running_ids)
+        instances = [_instance_summary(i, ssm_connected_ids) for i in raw_instances]
 
         if instance_id and not instances:
             return not_found(f"Instance {instance_id} not found")

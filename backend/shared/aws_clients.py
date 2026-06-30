@@ -1,5 +1,6 @@
 """boto3 クライアントファクトリ。テスト時はモック差し替えを想定。"""
 import os
+
 import boto3
 
 
@@ -17,3 +18,7 @@ def sns_client():
 
 def cloudwatch_client():
     return boto3.client("cloudwatch", region_name=os.environ["REGION"])
+
+
+def medical_imaging_client():
+    return boto3.client("medical-imaging", region_name=os.environ["REGION"])

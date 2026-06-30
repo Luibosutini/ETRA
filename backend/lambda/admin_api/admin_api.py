@@ -4,6 +4,7 @@
   GET    /admin/users
   POST   /admin/users/{username}/groups/{group}
   DELETE /admin/users/{username}/groups/{group}
+  POST   /admin/instances/{instance_id}/terminate
 """
 import json
 import os
@@ -13,6 +14,7 @@ import boto3
 from shared.auth import get_caller_groups
 
 cognito = boto3.client("cognito-idp")
+ec2 = boto3.client("ec2")
 USER_POOL_ID = os.environ["USER_POOL_ID"]
 
 
@@ -67,6 +69,11 @@ def handler(event: dict, _context) -> dict:
         group = path_params.get("group", "")
         return _remove_user_from_group(username, group)
 
+    # POST /admin/instances/{instance_id}/terminate
+    if method == "POST" and "terminate" in path:
+        instance_id = path_params.get("instance_id", "")
+        return _terminate_instance(instance_id)
+
     return _response(404, {"error": "Not found"})
 
 
@@ -109,3 +116,11 @@ def _remove_user_from_group(username: str, group: str) -> dict:
         UserPoolId=USER_POOL_ID, Username=username, GroupName=group
     )
     return _response(200, {"message": f"Removed {username} from {group}"})
+
+
+def _terminate_instance(instance_id: str) -> dict:
+    if not instance_id:
+        return _response(400, {"error": "instance_id is required"})
+    ec2.terminate_instances(InstanceIds=[instance_id])
+    print(json.dumps({"action": "terminate", "instance_id": instance_id}))
+    return _response(200, {"terminated": [instance_id]})

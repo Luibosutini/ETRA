@@ -104,8 +104,10 @@ def handler(event: dict, context: object) -> dict:
 
     except PermissionError as e:
         return forbidden(str(e))
-    except s3.exceptions.NoSuchKey:
-        return not_found(s3_key)
     except Exception as e:
-        logger.exception("Unexpected error")
+        # ClientError（NoSuchKey 含む）をここで捕捉
+        from botocore.exceptions import ClientError
+        if isinstance(e, ClientError) and e.response["Error"]["Code"] == "NoSuchKey":
+            return not_found(s3_key)
+        logger.exception("Unexpected error: %s", e)
         return server_error(str(e))

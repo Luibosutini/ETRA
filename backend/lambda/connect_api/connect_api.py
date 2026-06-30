@@ -6,7 +6,7 @@ Cognito JWT で認証済みのユーザーに、SSM ポートフォワーディ�
 import json
 import os
 import boto3
-from shared.auth import get_user_id
+from shared.auth import get_caller_user_id
 
 SSM_CONNECT_ROLE_ARN = os.environ["SSM_CONNECT_ROLE_ARN"]
 REGION = os.environ.get("REGION", "us-east-1")
@@ -16,7 +16,7 @@ sts = boto3.client("sts", region_name=REGION)
 
 def handler(event: dict, context) -> dict:
     try:
-        user_id = get_user_id(event)
+        user_id = get_caller_user_id(event)
     except Exception:
         return _resp(401, {"error": "Unauthorized"})
 

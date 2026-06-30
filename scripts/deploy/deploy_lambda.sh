@@ -45,6 +45,8 @@ ADMIN_API_FUNC=$(get_function_name admin_api)
 LOGS_API_FUNC=$(get_function_name logs_api)
 CLEANUP_COMPUTE_FUNC=$(get_function_name cleanup_compute)
 CONNECT_API_FUNC=$(get_function_name connect_api)
+RESTART_JUPYTER_FUNC=$(get_function_name restart_jupyter)
+DICOM_API_FUNC=$(get_function_name dicom_api)
 
 echo "  start_compute:       $START_COMPUTE_FUNC"
 echo "  stop_compute:        $STOP_COMPUTE_FUNC"
@@ -55,6 +57,8 @@ echo "  admin_api:           $ADMIN_API_FUNC"
 echo "  logs_api:            $LOGS_API_FUNC"
 echo "  cleanup_compute:     $CLEANUP_COMPUTE_FUNC"
 echo "  connect_api:         $CONNECT_API_FUNC"
+echo "  restart_jupyter:     $RESTART_JUPYTER_FUNC"
+echo "  dicom_api:           $DICOM_API_FUNC"
 echo "  pre_signup:          $PRE_SIGNUP_FUNC"
 echo "  post_confirmation:   $POST_CONFIRMATION_FUNC"
 
@@ -149,6 +153,8 @@ deploy_with_shared "admin_api"       "admin_api.py"       "$ADMIN_API_FUNC"
 deploy_with_shared "logs_api"        "logs_api.py"        "$LOGS_API_FUNC"
 deploy_with_shared "cleanup_compute" "cleanup_compute.py" "$CLEANUP_COMPUTE_FUNC"
 deploy_with_shared "connect_api"     "connect_api.py"     "$CONNECT_API_FUNC"
+deploy_with_shared "restart_jupyter" "restart_jupyter.py"  "$RESTART_JUPYTER_FUNC"
+deploy_with_shared "dicom_api"       "dicom_api.py"        "$DICOM_API_FUNC"
 
 deploy_standalone "cognito_pre_signup"       "cognito_pre_signup.py"       "$PRE_SIGNUP_FUNC"
 deploy_standalone "cognito_post_confirmation" "cognito_post_confirmation.py" "$POST_CONFIRMATION_FUNC"

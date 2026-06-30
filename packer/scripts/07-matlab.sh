@@ -5,6 +5,9 @@ echo "=== 07-matlab start: $(date) ==="
 : "${MATLAB_RELEASE:=R2024b}"
 : "${MATLAB_PRODUCTS:=MATLAB Simulink Image_Processing_Toolbox Signal_Processing_Toolbox Statistics_and_Machine_Learning_Toolbox Optimization_Toolbox Parallel_Computing_Toolbox Curve_Fitting_Toolbox Control_System_Toolbox}"
 
+# mpm 実行に必要な共有ライブラリ（AL2023 base には未導入: libatomic.so.1）
+dnf install -y libatomic
+
 curl -fsSL -o /tmp/mpm https://www.mathworks.com/mpm/glnxa64/mpm
 chmod +x /tmp/mpm
 

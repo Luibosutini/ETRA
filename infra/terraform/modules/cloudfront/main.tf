@@ -164,7 +164,7 @@ resource "aws_cloudfront_distribution" "viewer" {
   default_root_object = "index.html"
   comment             = "${local.name_prefix} OHIF Viewer"
   web_acl_id          = aws_wafv2_web_acl.viewer.arn
-  price_class         = "PriceClass_100"  # 北米 + 欧州のみ（コスト最適化）
+  price_class         = "PriceClass_100" # 北米 + 欧州のみ（コスト最適化）
 
   origin {
     domain_name              = var.frontend_bucket_regional_domain

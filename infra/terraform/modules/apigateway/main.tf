@@ -62,18 +62,17 @@ resource "aws_apigatewayv2_stage" "default" {
   access_log_settings {
     destination_arn = aws_cloudwatch_log_group.api_logs.arn
     format = jsonencode({
-      requestId    = "$context.requestId"
-      sourceIp     = "$context.identity.sourceIp"
-      requestTime  = "$context.requestTime"
-      routeKey     = "$context.routeKey"
-      status       = "$context.status"
+      requestId      = "$context.requestId"
+      sourceIp       = "$context.identity.sourceIp"
+      requestTime    = "$context.requestTime"
+      routeKey       = "$context.routeKey"
+      status         = "$context.status"
       responseLength = "$context.responseLength"
-      errorMessage = "$context.error.message"
+      errorMessage   = "$context.error.message"
     })
   }
 
   default_route_settings {
-    logging_level            = "INFO"
     detailed_metrics_enabled = true
     throttling_burst_limit   = 100
     throttling_rate_limit    = 50
@@ -137,6 +136,20 @@ resource "aws_apigatewayv2_integration" "connect_api" {
   payload_format_version = "2.0"
 }
 
+resource "aws_apigatewayv2_integration" "restart_jupyter" {
+  api_id                 = aws_apigatewayv2_api.this.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = var.lambda_invoke_arns.restart_jupyter
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_integration" "dicom_api" {
+  api_id                 = aws_apigatewayv2_api.this.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = var.lambda_invoke_arns.dicom_api
+  payload_format_version = "2.0"
+}
+
 # ─────────────────────────────────────────
 # Routes
 # ─────────────────────────────────────────
@@ -159,6 +172,14 @@ resource "aws_apigatewayv2_route" "admin_add_group" {
 resource "aws_apigatewayv2_route" "admin_remove_group" {
   api_id             = aws_apigatewayv2_api.this.id
   route_key          = "DELETE /admin/users/{username}/groups/{group}"
+  target             = "integrations/${aws_apigatewayv2_integration.admin_api.id}"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+  authorization_type = "JWT"
+}
+
+resource "aws_apigatewayv2_route" "admin_terminate_instance" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "POST /admin/instances/{instance_id}/terminate"
   target             = "integrations/${aws_apigatewayv2_integration.admin_api.id}"
   authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
   authorization_type = "JWT"
@@ -244,6 +265,30 @@ resource "aws_apigatewayv2_route" "connect_credentials" {
   authorization_type = "JWT"
 }
 
+resource "aws_apigatewayv2_route" "restart_jupyter" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "POST /compute/restart-jupyter"
+  target             = "integrations/${aws_apigatewayv2_integration.restart_jupyter.id}"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+  authorization_type = "JWT"
+}
+
+resource "aws_apigatewayv2_route" "dcv_token" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "GET /connect/dcv-token"
+  target             = "integrations/${aws_apigatewayv2_integration.restart_jupyter.id}"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+  authorization_type = "JWT"
+}
+
+resource "aws_apigatewayv2_route" "dicom_studies" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "GET /dicom/studies"
+  target             = "integrations/${aws_apigatewayv2_integration.dicom_api.id}"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+  authorization_type = "JWT"
+}
+
 # ─────────────────────────────────────────
 # Lambda Permissions
 # ─────────────────────────────────────────
@@ -301,4 +346,20 @@ resource "aws_lambda_permission" "connect_api" {
   function_name = var.lambda_function_names.connect_api
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*/connect*"
+}
+
+resource "aws_lambda_permission" "restart_jupyter" {
+  statement_id  = "AllowAPIGatewayInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = var.lambda_function_names.restart_jupyter
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*/*"
+}
+
+resource "aws_lambda_permission" "dicom_api" {
+  statement_id  = "AllowAPIGatewayInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = var.lambda_function_names.dicom_api
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*/dicom*"
 }

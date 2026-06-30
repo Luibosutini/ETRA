@@ -13,6 +13,8 @@ variable "role_arns" {
     logs_api        = string
     cleanup_compute = string
     connect_api     = string
+    restart_jupyter = string
+    dicom_api       = string
   })
 }
 
@@ -22,8 +24,8 @@ variable "launch_template_id" {
   default     = ""
 }
 
-variable "private_subnet_ids"    { type = list(string) }
-variable "lambda_sg_id"          { type = string }
+variable "private_subnet_ids" { type = list(string) }
+variable "lambda_sg_id" { type = string }
 variable "workspace_bucket_name" { type = string }
 variable "notification_topic_arn" {
   type    = string
@@ -37,5 +39,11 @@ variable "cognito_user_pool_id" {
 variable "ssm_connect_role_arn" {
   type        = string
   description = "connect_api Lambda が assume_role するロールの ARN"
+  default     = ""
+}
+
+variable "healthimaging_datastore_id" {
+  type        = string
+  description = "dicom_api Lambda が参照する HealthImaging データストア ID"
   default     = ""
 }

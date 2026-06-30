@@ -2,22 +2,27 @@ locals {
   name_prefix = "${var.project}-${var.env}"
 
   functions = {
-    start_compute    = { role_arn = var.role_arns.start_compute,    handler = "start_compute.handler" }
-    stop_compute     = { role_arn = var.role_arns.stop_compute,     handler = "stop_compute.handler" }
-    status_compute   = { role_arn = var.role_arns.status_compute,   handler = "status_compute.handler" }
-    workspace_api    = { role_arn = var.role_arns.workspace_api,    handler = "workspace_api.handler" }
-    notify_status    = { role_arn = var.role_arns.notify_status,    handler = "notify_status.handler" }
-    admin_api        = { role_arn = var.role_arns.admin_api,        handler = "admin_api.handler" }
-    logs_api         = { role_arn = var.role_arns.logs_api,         handler = "logs_api.handler" }
-    cleanup_compute  = { role_arn = var.role_arns.cleanup_compute,  handler = "cleanup_compute.handler" }
-    connect_api      = { role_arn = var.role_arns.connect_api,      handler = "connect_api.handler" }
+    start_compute   = { role_arn = var.role_arns.start_compute, handler = "start_compute.handler" }
+    stop_compute    = { role_arn = var.role_arns.stop_compute, handler = "stop_compute.handler" }
+    status_compute  = { role_arn = var.role_arns.status_compute, handler = "status_compute.handler" }
+    workspace_api   = { role_arn = var.role_arns.workspace_api, handler = "workspace_api.handler" }
+    notify_status   = { role_arn = var.role_arns.notify_status, handler = "notify_status.handler" }
+    admin_api       = { role_arn = var.role_arns.admin_api, handler = "admin_api.handler" }
+    logs_api        = { role_arn = var.role_arns.logs_api, handler = "logs_api.handler" }
+    cleanup_compute = { role_arn = var.role_arns.cleanup_compute, handler = "cleanup_compute.handler" }
+    connect_api     = { role_arn = var.role_arns.connect_api, handler = "connect_api.handler" }
+    restart_jupyter = { role_arn = var.role_arns.restart_jupyter, handler = "restart_jupyter.handler" }
+    dicom_api       = { role_arn = var.role_arns.dicom_api, handler = "dicom_api.handler" }
   }
 
   # VPC 内から到達できない AWS エンドポイントを使う関数は VPC 外に配置する:
-  # - admin_api / logs_api: Cognito ManagedLogin は cognito-idp PrivateLink 非対応
-  # - cleanup_compute: CloudWatch monitoring (GetMetricStatistics) の VPC エンドポイントなし
+  # - admin_api / logs_api: Cognito / CloudWatch Logs はパブリックエンドポイント経由
+  # - cleanup_compute: CloudWatch Metrics (GetMetricStatistics) の VPC エンドポイントなし
   # - connect_api: STS はパブリックエンドポイントのみ（PrivateLink 非対応リージョンあり）
-  no_vpc_functions = toset(["admin_api", "logs_api", "cleanup_compute", "connect_api"])
+  # - notify_status: SNS のみ使用。VPC 内リソースへのアクセスなし → VPC 外で十分
+  # restart_jupyter: SSM SendCommand API はパブリックエンドポイント。VPC 外で十分
+  # - dicom_api: HealthImaging (medical-imaging) の VPC エンドポイントなし → VPC 外に配置
+  no_vpc_functions = toset(["admin_api", "logs_api", "cleanup_compute", "connect_api", "notify_status", "restart_jupyter", "dicom_api"])
 }
 
 # ─────────────────────────────────────────
@@ -51,8 +56,8 @@ resource "aws_lambda_function" "this" {
         LAUNCH_TEMPLATE_ID = var.launch_template_id
       } : {},
       each.key == "cleanup_compute" ? {
-        IDLE_CPU_THRESHOLD    = "10.0"
-        IDLE_DURATION_MINUTES = "30"
+        IDLE_CPU_THRESHOLD     = "5.0"
+        IDLE_DURATION_MINUTES  = "120"
         STOPPED_DAYS_THRESHOLD = "7"
       } : {},
       each.key == "workspace_api" ? {
@@ -69,6 +74,13 @@ resource "aws_lambda_function" "this" {
       } : {},
       each.key == "connect_api" ? {
         SSM_CONNECT_ROLE_ARN = var.ssm_connect_role_arn
+      } : {},
+      contains(["restart_jupyter"], each.key) ? {
+        ANALYSIS_INSTANCE_TAG_KEY   = "Project"
+        ANALYSIS_INSTANCE_TAG_VALUE = var.project
+      } : {},
+      each.key == "dicom_api" ? {
+        DATASTORE_ID = var.healthimaging_datastore_id
       } : {}
     )
   }

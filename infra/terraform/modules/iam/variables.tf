@@ -9,3 +9,7 @@ variable "cognito_user_pool_arn" {
   type    = string
   default = "*"
 }
+variable "healthimaging_datastore_arn" {
+  type    = string
+  default = "*"
+}

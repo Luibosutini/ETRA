@@ -2,27 +2,12 @@ locals {
   name_prefix = "${var.project}-${var.env}"
 }
 
-data "aws_ami" "amazon_linux" {
-  most_recent = true
-  owners      = ["amazon"]
-
-  filter {
-    name   = "name"
-    values = ["al2023-ami-*-x86_64"]
-  }
-
-  filter {
-    name   = "virtualization-type"
-    values = ["hvm"]
-  }
-}
-
 # ─────────────────────────────────────────
 # 起動テンプレート
 # ─────────────────────────────────────────
 resource "aws_launch_template" "analysis" {
   name          = "${local.name_prefix}-analysis"
-  image_id      = var.ami_id != "" ? var.ami_id : data.aws_ami.amazon_linux.id
+  image_id      = var.ami_id
   instance_type = var.instance_type
 
   iam_instance_profile {
@@ -47,7 +32,7 @@ resource "aws_launch_template" "analysis" {
 
   metadata_options {
     http_endpoint               = "enabled"
-    http_tokens                 = "required"  # IMDSv2 強制
+    http_tokens                 = "required" # IMDSv2 強制
     http_put_response_hop_limit = 1
   }
 

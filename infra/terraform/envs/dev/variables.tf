@@ -19,6 +19,11 @@ variable "ec2_instance_type" {
   default     = "t3.xlarge"
 }
 
+variable "ami_id" {
+  description = "Packer でビルドした ETRA カスタム AMI ID（scripts/deploy/build_ami.sh で作成）"
+  type        = string
+}
+
 variable "allowed_email_domains" {
   description = "Cognito への登録を許可するメールドメイン（例: 大学のドメイン）"
   type        = list(string)

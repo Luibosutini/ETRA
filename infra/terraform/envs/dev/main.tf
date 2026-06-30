@@ -56,13 +56,13 @@ provider "aws" {
 module "vpc" {
   source = "../../modules/vpc"
 
-  project             = var.project
-  env                 = var.env
-  region              = var.region
+  project         = var.project
+  env             = var.env
+  region          = var.region
   vpc_cidr        = "10.0.0.0/16"
-  azs             = ["us-east-1a", "us-east-1b"]
-  private_subnets = ["10.0.1.0/24", "10.0.2.0/24"]
-  public_subnets  = ["10.0.101.0/24", "10.0.102.0/24"]
+  azs             = ["us-east-1a"] # dev は 1 AZ で十分（Interface EP コスト削減）
+  private_subnets = ["10.0.1.0/24"]
+  public_subnets  = ["10.0.101.0/24"]
 }
 
 # ─────────────────────────────────────────
@@ -84,11 +84,12 @@ module "s3" {
 module "iam" {
   source = "../../modules/iam"
 
-  project                = var.project
-  env                    = var.env
-  workspace_bucket_arn   = module.s3.workspace_bucket_arn
-  notification_topic_arn = module.cloudwatch.alerts_topic_arn
-  cognito_user_pool_arn  = module.cognito.user_pool_arn
+  project                     = var.project
+  env                         = var.env
+  workspace_bucket_arn        = module.s3.workspace_bucket_arn
+  notification_topic_arn      = module.cloudwatch.alerts_topic_arn
+  cognito_user_pool_arn       = module.cognito.user_pool_arn
+  healthimaging_datastore_arn = module.healthimaging.datastore_arn
 }
 
 # ─────────────────────────────────────────
@@ -124,6 +125,7 @@ module "ec2" {
   env                   = var.env
   region                = var.region
   instance_type         = var.ec2_instance_type
+  ami_id                = var.ami_id
   instance_profile_name = module.iam.ec2_analysis_instance_profile
   security_group_id     = module.vpc.ec2_analysis_sg_id
   subnet_id             = module.vpc.private_subnet_ids[0]
@@ -136,9 +138,9 @@ module "ec2" {
 module "lambda" {
   source = "../../modules/lambda"
 
-  project    = var.project
-  env        = var.env
-  region     = var.region
+  project = var.project
+  env     = var.env
+  region  = var.region
 
   role_arns = {
     start_compute   = module.iam.lambda_start_compute_role_arn
@@ -150,9 +152,12 @@ module "lambda" {
     logs_api        = module.iam.lambda_logs_api_role_arn
     cleanup_compute = module.iam.lambda_cleanup_compute_role_arn
     connect_api     = module.iam.lambda_connect_api_role_arn
+    restart_jupyter = module.iam.lambda_restart_jupyter_role_arn
+    dicom_api       = module.iam.lambda_dicom_api_role_arn
   }
 
-  ssm_connect_role_arn = module.iam.ssm_connect_user_role_arn
+  ssm_connect_role_arn       = module.iam.ssm_connect_user_role_arn
+  healthimaging_datastore_id = module.healthimaging.datastore_id
 
   private_subnet_ids     = module.vpc.private_subnet_ids
   lambda_sg_id           = module.vpc.lambda_sg_id
@@ -211,23 +216,27 @@ module "apigateway" {
   cognito_auth_domain  = module.cognito.auth_domain
 
   lambda_invoke_arns = {
-    start_compute  = module.lambda.function_invoke_arns["start_compute"]
-    stop_compute   = module.lambda.function_invoke_arns["stop_compute"]
-    status_compute = module.lambda.function_invoke_arns["status_compute"]
-    workspace_api  = module.lambda.function_invoke_arns["workspace_api"]
-    admin_api      = module.lambda.function_invoke_arns["admin_api"]
-    logs_api       = module.lambda.function_invoke_arns["logs_api"]
-    connect_api    = module.lambda.function_invoke_arns["connect_api"]
+    start_compute   = module.lambda.function_invoke_arns["start_compute"]
+    stop_compute    = module.lambda.function_invoke_arns["stop_compute"]
+    status_compute  = module.lambda.function_invoke_arns["status_compute"]
+    workspace_api   = module.lambda.function_invoke_arns["workspace_api"]
+    admin_api       = module.lambda.function_invoke_arns["admin_api"]
+    logs_api        = module.lambda.function_invoke_arns["logs_api"]
+    connect_api     = module.lambda.function_invoke_arns["connect_api"]
+    restart_jupyter = module.lambda.function_invoke_arns["restart_jupyter"]
+    dicom_api       = module.lambda.function_invoke_arns["dicom_api"]
   }
 
   lambda_function_names = {
-    start_compute  = module.lambda.function_names["start_compute"]
-    stop_compute   = module.lambda.function_names["stop_compute"]
-    status_compute = module.lambda.function_names["status_compute"]
-    workspace_api  = module.lambda.function_names["workspace_api"]
-    admin_api      = module.lambda.function_names["admin_api"]
-    logs_api       = module.lambda.function_names["logs_api"]
-    connect_api    = module.lambda.function_names["connect_api"]
+    start_compute   = module.lambda.function_names["start_compute"]
+    stop_compute    = module.lambda.function_names["stop_compute"]
+    status_compute  = module.lambda.function_names["status_compute"]
+    workspace_api   = module.lambda.function_names["workspace_api"]
+    admin_api       = module.lambda.function_names["admin_api"]
+    logs_api        = module.lambda.function_names["logs_api"]
+    connect_api     = module.lambda.function_names["connect_api"]
+    restart_jupyter = module.lambda.function_names["restart_jupyter"]
+    dicom_api       = module.lambda.function_names["dicom_api"]
   }
 
   allowed_origins = concat(

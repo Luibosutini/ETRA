@@ -116,17 +116,6 @@ resource "aws_vpc_endpoint" "ec2messages" {
   tags = { Name = "${local.name_prefix}-vpce-ec2messages" }
 }
 
-resource "aws_vpc_endpoint" "lambda" {
-  vpc_id              = aws_vpc.this.id
-  service_name        = "com.amazonaws.${var.region}.lambda"
-  vpc_endpoint_type   = "Interface"
-  subnet_ids          = [for s in aws_subnet.private : s.id]
-  security_group_ids  = [aws_security_group.vpce.id]
-  private_dns_enabled = true
-
-  tags = { Name = "${local.name_prefix}-vpce-lambda" }
-}
-
 # EC2 API エンドポイント（start/stop/status_compute Lambda が必要）
 resource "aws_vpc_endpoint" "ec2" {
   vpc_id              = aws_vpc.this.id
@@ -139,50 +128,11 @@ resource "aws_vpc_endpoint" "ec2" {
   tags = { Name = "${local.name_prefix}-vpce-ec2" }
 }
 
-# CloudWatch Logs エンドポイント（logs_api Lambda が必要）
-resource "aws_vpc_endpoint" "logs" {
-  vpc_id              = aws_vpc.this.id
-  service_name        = "com.amazonaws.${var.region}.logs"
-  vpc_endpoint_type   = "Interface"
-  subnet_ids          = [for s in aws_subnet.private : s.id]
-  security_group_ids  = [aws_security_group.vpce.id]
-  private_dns_enabled = true
-
-  tags = { Name = "${local.name_prefix}-vpce-logs" }
-}
-
-# cognito-idp エンドポイントがサポートする AZ を動的に取得
-data "aws_vpc_endpoint_service" "cognito_idp" {
-  service = "cognito-idp"
-}
-
-# Cognito IDP エンドポイント（admin_api Lambda が必要）
-# サービスがサポートする AZ のサブネットのみ指定（全 AZ 対応ではない）
-resource "aws_vpc_endpoint" "cognito_idp" {
-  vpc_id            = aws_vpc.this.id
-  service_name      = "com.amazonaws.${var.region}.cognito-idp"
-  vpc_endpoint_type = "Interface"
-  subnet_ids = [
-    for s in aws_subnet.private : s.id
-    if contains(data.aws_vpc_endpoint_service.cognito_idp.availability_zones, s.availability_zone)
-  ]
-  security_group_ids  = [aws_security_group.vpce.id]
-  private_dns_enabled = true
-
-  tags = { Name = "${local.name_prefix}-vpce-cognito-idp" }
-}
-
-# SNS エンドポイント（notify_status Lambda が必要）
-resource "aws_vpc_endpoint" "sns" {
-  vpc_id              = aws_vpc.this.id
-  service_name        = "com.amazonaws.${var.region}.sns"
-  vpc_endpoint_type   = "Interface"
-  subnet_ids          = [for s in aws_subnet.private : s.id]
-  security_group_ids  = [aws_security_group.vpce.id]
-  private_dns_enabled = true
-
-  tags = { Name = "${local.name_prefix}-vpce-sns" }
-}
+# 削除済み（不要な Interface Endpoints）:
+# - logs:       Lambda ランタイムのログ転送は内部経路。logs_api は VPC 外のため不要
+# - cognito_idp: admin_api は VPC 外。VPC 内 Lambda は Cognito を使用しないため不要
+# - sns:        notify_status を VPC 外へ移動済みのため不要
+# - lambda:     API Gateway / EventBridge は内部経路で Lambda を invoke するため不要
 
 # ─────────────────────────────────────────
 # Security Groups

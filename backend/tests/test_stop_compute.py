@@ -1,7 +1,7 @@
-import sys
 import json
+import sys
+
 import boto3
-import pytest
 from moto import mock_aws
 
 sys.path.insert(0, ".")

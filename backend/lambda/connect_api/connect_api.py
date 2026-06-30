@@ -5,6 +5,7 @@ Cognito JWT で認証済みのユーザーに、SSM ポートフォワーディ�
 """
 import json
 import os
+
 import boto3
 from shared.auth import get_caller_user_id
 

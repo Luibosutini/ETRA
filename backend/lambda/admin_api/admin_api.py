@@ -10,7 +10,6 @@ import json
 import os
 
 import boto3
-
 from shared.auth import get_caller_groups
 
 cognito = boto3.client("cognito-idp")

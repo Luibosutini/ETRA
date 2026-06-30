@@ -18,8 +18,8 @@ import urllib.parse
 
 sys.path.insert(0, "/opt/python")
 
-from shared.aws_clients import s3_client
 from shared.auth import assert_workspace_access, get_caller_user_id
+from shared.aws_clients import s3_client
 from shared.response import bad_request, forbidden, not_found, ok, server_error
 
 logger = logging.getLogger(__name__)

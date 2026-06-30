@@ -17,8 +17,8 @@ import sys
 
 sys.path.insert(0, "/opt/python")
 
-from shared.aws_clients import ec2_client
 from shared.auth import get_caller_user_id
+from shared.aws_clients import ec2_client
 from shared.response import bad_request, forbidden, ok, server_error
 
 logger = logging.getLogger(__name__)

@@ -55,6 +55,6 @@ def handler(event: dict, context: object) -> dict:
         )
         logger.info("Published message: %s", resp["MessageId"])
         return {"message_id": resp["MessageId"], "instance_id": instance_id, "state": state}
-    except Exception as e:
+    except Exception:
         logger.exception("Failed to publish SNS message")
         raise

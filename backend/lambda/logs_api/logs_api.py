@@ -9,7 +9,6 @@ import os
 import time
 
 import boto3
-
 from shared.auth import get_caller_groups
 
 logs = boto3.client("logs")

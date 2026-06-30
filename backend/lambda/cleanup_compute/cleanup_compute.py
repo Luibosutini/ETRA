@@ -16,11 +16,11 @@ import logging
 import os
 import re
 import sys
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 
 sys.path.insert(0, "/opt/python")
 
-from shared.aws_clients import ec2_client, cloudwatch_client
+from shared.aws_clients import cloudwatch_client, ec2_client
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -34,7 +34,7 @@ STOPPED_DAYS_THRESHOLD = int(os.environ.get("STOPPED_DAYS_THRESHOLD", "7"))
 
 def _get_avg_cpu(cw, instance_id: str, minutes: int) -> float | None:
     """指定期間の平均 CPU 使用率を返す。データ不足時は None。"""
-    end = datetime.now(timezone.utc)
+    end = datetime.now(UTC)
     start = end - timedelta(minutes=minutes)
     resp = cw.get_metric_statistics(
         Namespace="AWS/EC2",
@@ -59,7 +59,7 @@ def _parse_state_transition_time(reason: str) -> datetime | None:
     if not m:
         return None
     try:
-        return datetime.strptime(m.group(1), "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+        return datetime.strptime(m.group(1), "%Y-%m-%d %H:%M:%S").replace(tzinfo=UTC)
     except ValueError:
         return None
 
@@ -97,7 +97,7 @@ def handler(event: dict, context: object) -> dict:
             Filters=project_filter + [{"Name": "instance-state-name", "Values": ["stopped"]}]
         )
         stopped = [i for r in resp["Reservations"] for i in r["Instances"]]
-        threshold = datetime.now(timezone.utc) - timedelta(days=STOPPED_DAYS_THRESHOLD)
+        threshold = datetime.now(UTC) - timedelta(days=STOPPED_DAYS_THRESHOLD)
 
         for inst in stopped:
             iid = inst["InstanceId"]

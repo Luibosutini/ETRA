@@ -14,9 +14,8 @@ import sys
 sys.path.insert(0, "/opt/python")
 
 import boto3
-
-from shared.aws_clients import ec2_client
 from shared.auth import get_caller_user_id, is_admin
+from shared.aws_clients import ec2_client
 from shared.response import bad_request, forbidden, not_found, ok, server_error
 
 logger = logging.getLogger(__name__)

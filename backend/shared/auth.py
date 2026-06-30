@@ -1,6 +1,6 @@
 """Cognito JWT から呼び出し元ユーザー情報を取得するヘルパー。"""
-import json
 import base64
+import json
 from typing import Any
 
 
@@ -86,11 +86,7 @@ def assert_workspace_access(user_id: str, s3_key: str) -> None:
     - shared/ は全員アクセス可
     - results/<user_id>/ は本人のみアクセス可
     """
-    if s3_key.startswith("personal/"):
-        owner = s3_key.split("/")[1] if s3_key.count("/") >= 1 else ""
-        if owner != user_id:
-            raise PermissionError(f"Access denied: {s3_key}")
-    elif s3_key.startswith("results/"):
+    if s3_key.startswith("personal/") or s3_key.startswith("results/"):
         owner = s3_key.split("/")[1] if s3_key.count("/") >= 1 else ""
         if owner != user_id:
             raise PermissionError(f"Access denied: {s3_key}")

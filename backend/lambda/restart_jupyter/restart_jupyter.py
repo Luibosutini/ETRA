@@ -4,11 +4,13 @@ restart_jupyter Lambda — POST /compute/restart-jupyter
 呼び出したユーザーの EC2 インスタンスで JupyterLab 再起動 / DCV トークン生成を行う。
 SSM Run Command (AWS-RunShellScript) を使用。
 """
+import contextlib
 import json
 import os
 import time
+
 import boto3
-from shared.auth import get_caller_user_id, get_caller_groups
+from shared.auth import get_caller_groups, get_caller_user_id
 
 REGION = os.environ.get("REGION", "us-east-1")
 TAG_KEY = os.environ.get("ANALYSIS_INSTANCE_TAG_KEY", "Project")
@@ -31,10 +33,8 @@ def handler(event: dict, context) -> dict:
 
     body = {}
     if event.get("body"):
-        try:
+        with contextlib.suppress(Exception):
             body = json.loads(event["body"])
-        except Exception:
-            pass
 
     requested_instance_id = body.get("instance_id")
 

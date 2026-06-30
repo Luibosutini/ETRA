@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { listUsers, addUserToGroup, removeUserFromGroup, UserInfo } from '../api'
+import { ErrorMessage, StatusMessage } from '../components/Message'
 
 const MANAGED_GROUPS = ['admin', 'user']
 
@@ -25,10 +26,11 @@ export default function AdminPage({ isAdmin }: { isAdmin: boolean }) {
   }, [isAdmin])
 
   if (!isAdmin) {
-    return <p className="text-red-400 mt-4">このページは管理者のみ表示できます。</p>
+    return <ErrorMessage className="mt-4 text-base">このページは管理者のみ表示できます。</ErrorMessage>
   }
 
   const toggleGroup = async (username: string, group: string, hasGroup: boolean) => {
+    setError(null)
     try {
       if (hasGroup) {
         await removeUserFromGroup(username, group)
@@ -37,7 +39,7 @@ export default function AdminPage({ isAdmin }: { isAdmin: boolean }) {
       }
       await fetchUsers()
     } catch (e) {
-      alert(e instanceof Error ? e.message : '操作に失敗しました')
+      setError(e instanceof Error ? e.message : '操作に失敗しました')
     }
   }
 
@@ -53,24 +55,25 @@ export default function AdminPage({ isAdmin }: { isAdmin: boolean }) {
         </button>
       </div>
 
-      {error && <p className="mb-3 text-red-400 text-sm">{error}</p>}
+      {error && <ErrorMessage className="mb-3">{error}</ErrorMessage>}
 
       {loading ? (
-        <p className="text-gray-400 animate-pulse">読み込み中...</p>
+        <StatusMessage className="text-gray-400 animate-pulse">読み込み中...</StatusMessage>
       ) : (
         <table className="w-full text-sm border-collapse">
+          <caption className="sr-only">ユーザーと所属グループの一覧</caption>
           <thead>
             <tr className="border-b border-gray-700 text-gray-400 text-left">
-              <th className="py-2 pr-4">メール</th>
-              <th className="py-2 pr-4">ステータス</th>
-              <th className="py-2 pr-4">グループ</th>
-              <th className="py-2">操作</th>
+              <th scope="col" className="py-2 pr-4">メール</th>
+              <th scope="col" className="py-2 pr-4">ステータス</th>
+              <th scope="col" className="py-2 pr-4">グループ</th>
+              <th scope="col" className="py-2">操作</th>
             </tr>
           </thead>
           <tbody>
             {users.length === 0 && (
               <tr>
-                <td colSpan={4} className="py-4 text-gray-500 text-center">
+                <td colSpan={4} className="py-4 text-gray-400 text-center">
                   ユーザーがいません
                 </td>
               </tr>
@@ -79,7 +82,7 @@ export default function AdminPage({ isAdmin }: { isAdmin: boolean }) {
               <tr key={u.username} className="border-b border-gray-800 hover:bg-gray-900">
                 <td className="py-2 pr-4 font-mono text-xs">
                   <div>{u.email || u.username}</div>
-                  <div className="text-gray-500">{u.username}</div>
+                  <div className="text-gray-400">{u.username}</div>
                 </td>
                 <td className="py-2 pr-4">
                   <span
@@ -98,7 +101,7 @@ export default function AdminPage({ isAdmin }: { isAdmin: boolean }) {
                       </span>
                     ))}
                     {u.groups.length === 0 && (
-                      <span className="text-gray-500 text-xs">なし</span>
+                      <span className="text-gray-400 text-xs">なし</span>
                     )}
                   </div>
                 </td>
@@ -110,6 +113,7 @@ export default function AdminPage({ isAdmin }: { isAdmin: boolean }) {
                         <button
                           key={g}
                           onClick={() => toggleGroup(u.username, g, has)}
+                          aria-label={`${u.email || u.username} ${has ? 'から' : 'に'} ${g} ${has ? 'を削除' : 'を追加'}`}
                           className={`px-2 py-0.5 rounded text-xs ${
                             has
                               ? 'bg-red-900 hover:bg-red-800 text-red-200'

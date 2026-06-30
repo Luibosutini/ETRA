@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { listLogGroups, getLogEvents, LogEvent } from '../api'
+import Field from '../components/Field'
+import { ErrorMessage, StatusMessage } from '../components/Message'
 
 export default function LogsPage({ isAdmin }: { isAdmin: boolean }) {
   const [groups, setGroups] = useState<string[]>([])
@@ -39,7 +41,7 @@ export default function LogsPage({ isAdmin }: { isAdmin: boolean }) {
   }, [selectedGroup])
 
   if (!isAdmin) {
-    return <p className="text-red-400 mt-4">このページは管理者のみ表示できます。</p>
+    return <ErrorMessage className="mt-4 text-base">このページは管理者のみ表示できます。</ErrorMessage>
   }
 
   return (
@@ -48,19 +50,22 @@ export default function LogsPage({ isAdmin }: { isAdmin: boolean }) {
 
       <div className="flex gap-2 mb-4 items-center flex-wrap">
         {loadingGroups ? (
-          <span className="text-gray-400 text-sm animate-pulse">ロードグループ取得中...</span>
+          <StatusMessage className="text-gray-400 text-sm animate-pulse">ロードグループ取得中...</StatusMessage>
         ) : (
-          <select
-            value={selectedGroup}
-            onChange={(e) => setSelectedGroup(e.target.value)}
-            className="bg-gray-800 border border-gray-700 rounded px-3 py-1 text-sm text-white"
-          >
-            {groups.map((g) => (
-              <option key={g} value={g}>
-                {g}
-              </option>
-            ))}
-          </select>
+          <Field label="ロググループ" htmlFor="logs-group-select" labelHidden>
+            <select
+              id="logs-group-select"
+              value={selectedGroup}
+              onChange={(e) => setSelectedGroup(e.target.value)}
+              className="bg-gray-800 border border-gray-700 rounded px-3 py-1 text-sm text-white"
+            >
+              {groups.map((g) => (
+                <option key={g} value={g}>
+                  {g}
+                </option>
+              ))}
+            </select>
+          </Field>
         )}
         <button
           onClick={() => fetchEvents(selectedGroup)}
@@ -71,21 +76,21 @@ export default function LogsPage({ isAdmin }: { isAdmin: boolean }) {
         </button>
       </div>
 
-      {error && <p className="mb-3 text-red-400 text-sm">{error}</p>}
+      {error && <ErrorMessage className="mb-3">{error}</ErrorMessage>}
 
       {loadingEvents ? (
-        <p className="text-gray-400 animate-pulse">読み込み中...</p>
+        <StatusMessage className="text-gray-400 animate-pulse">読み込み中...</StatusMessage>
       ) : (
         <div className="font-mono text-xs bg-gray-900 rounded border border-gray-700 overflow-auto max-h-[70vh]">
           {events.length === 0 ? (
-            <p className="p-4 text-gray-500">ログがありません（直近 24 時間）</p>
+            <p className="p-4 text-gray-400">ログがありません（直近 24 時間）</p>
           ) : (
             events.map((e, i) => (
               <div
                 key={i}
                 className="px-4 py-1 border-b border-gray-800 hover:bg-gray-800 flex gap-3"
               >
-                <span className="text-gray-500 shrink-0 w-44">
+                <span className="text-gray-400 shrink-0 w-44">
                   {new Date(e.timestamp).toLocaleString('ja-JP')}
                 </span>
                 <span className="text-gray-300 break-all">{e.message}</span>

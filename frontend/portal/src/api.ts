@@ -26,6 +26,8 @@ export interface InstanceInfo {
   state: string
   instance_type: string
   launch_time?: string
+  ssm_connected?: boolean
+  owner?: string
 }
 
 export async function getComputeStatus(): Promise<InstanceInfo[]> {
@@ -48,6 +50,13 @@ export async function stopCompute(instanceId?: string): Promise<void> {
   })
 }
 
+export async function restartJupyter(instanceId?: string): Promise<void> {
+  await apiFetch('/compute/restart-jupyter', {
+    method: 'POST',
+    body: JSON.stringify({ instance_id: instanceId }),
+  })
+}
+
 // ─── Workspace ─────────────────────────────────────────
 
 export interface WorkspaceItem {
@@ -62,15 +71,20 @@ export async function listWorkspace(prefix: string): Promise<WorkspaceItem[]> {
   return data.items ?? []
 }
 
+/** S3 キーをAPIパスに変換する。スラッシュはパス区切りとして保持し、各セグメントのみエンコードする。*/
+function encodeWorkspaceKey(key: string): string {
+  return key.split('/').map(encodeURIComponent).join('/')
+}
+
 export async function getDownloadUrl(key: string): Promise<string> {
-  const res = await apiFetch(`/workspace/${encodeURIComponent(key)}`)
+  const res = await apiFetch(`/workspace/${encodeWorkspaceKey(key)}`)
   const data = await res.json()
   return data.url as string
 }
 
 export async function getUploadUrl(key: string, contentType = 'application/octet-stream'): Promise<string> {
   const res = await apiFetch(
-    `/workspace/${encodeURIComponent(key)}?content_type=${encodeURIComponent(contentType)}`,
+    `/workspace/${encodeWorkspaceKey(key)}?content_type=${encodeURIComponent(contentType)}`,
     { method: 'PUT' }
   )
   const data = await res.json()
@@ -78,7 +92,7 @@ export async function getUploadUrl(key: string, contentType = 'application/octet
 }
 
 export async function deleteWorkspaceItem(key: string): Promise<void> {
-  await apiFetch(`/workspace/${encodeURIComponent(key)}`, { method: 'DELETE' })
+  await apiFetch(`/workspace/${encodeWorkspaceKey(key)}`, { method: 'DELETE' })
 }
 
 export async function uploadFile(key: string, file: File): Promise<void> {
@@ -120,6 +134,12 @@ export async function removeUserFromGroup(username: string, group: string): Prom
   })
 }
 
+export async function terminateInstance(instanceId: string): Promise<void> {
+  await apiFetch(`/admin/instances/${encodeURIComponent(instanceId)}/terminate`, {
+    method: 'POST',
+  })
+}
+
 // ─── Connect ───────────────────────────────────────
 
 export interface ConnectCredentials {
@@ -133,6 +153,46 @@ export interface ConnectCredentials {
 export async function getConnectCredentials(): Promise<ConnectCredentials> {
   const res = await apiFetch('/connect/credentials')
   return res.json()
+}
+
+export async function getDcvToken(): Promise<{ url: string; password: string; username: string; expires_in: number }> {
+  const res = await apiFetch('/connect/dcv-token')
+  return res.json()
+}
+
+// ─── DICOM ─────────────────────────────────────────
+
+export interface DicomStudy {
+  image_set_id: string
+  version: number | null
+  study_instance_uid: string | null
+  patient_id: string | null
+  patient_name: string | null
+  study_date: string | null
+  study_description: string | null
+  series_count: number | null
+  instance_count: number | null
+  is_primary: boolean | null
+  created_at: string | null
+  updated_at: string | null
+}
+
+export interface DicomStudyList {
+  studies: DicomStudy[]
+  next_token: string | null
+}
+
+export async function listDicomStudies(options: {
+  nextToken?: string
+  patientId?: string
+} = {}): Promise<DicomStudyList> {
+  const params = new URLSearchParams()
+  if (options.nextToken) params.set('next_token', options.nextToken)
+  if (options.patientId) params.set('patient_id', options.patientId)
+  const qs = params.toString()
+  const res = await apiFetch(`/dicom/studies${qs ? `?${qs}` : ''}`)
+  const data = await res.json()
+  return { studies: data.studies ?? [], next_token: data.next_token ?? null }
 }
 
 // ─── Logs ──────────────────────────────────────────

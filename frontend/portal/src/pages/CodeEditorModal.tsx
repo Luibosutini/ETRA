@@ -7,6 +7,8 @@ import { json } from '@codemirror/lang-json'
 import { markdown } from '@codemirror/lang-markdown'
 import { yaml } from '@codemirror/lang-yaml'
 import { getDownloadUrl, getUploadUrl } from '../api'
+import Dialog from '../components/Dialog'
+import { ErrorMessage, StatusMessage } from '../components/Message'
 
 const MAX_EDIT_SIZE = 1024 * 1024 // 1 MB
 
@@ -75,12 +77,17 @@ export default function CodeEditorModal({ fileKey, fileSize, onClose, onSaved }:
   const onChange = useCallback((val: string) => setContent(val), [])
 
   return (
-    <div className="fixed inset-0 z-50 bg-gray-950 flex flex-col">
+    <Dialog
+      open
+      onClose={onClose}
+      label={`ファイル編集: ${fileKey}`}
+      className="h-full w-full bg-gray-950 flex flex-col"
+    >
       {/* ヘッダー */}
       <div className="flex items-center justify-between px-4 py-2 bg-gray-900 border-b border-gray-700 shrink-0">
         <span className="font-mono text-xs text-gray-300 truncate max-w-lg">{fileKey}</span>
         <div className="flex items-center gap-3">
-          {error && <span className="text-red-400 text-xs">{error}</span>}
+          {error && <ErrorMessage className="text-xs">{error}</ErrorMessage>}
           <button
             onClick={handleSave}
             disabled={saving || loading || !!error}
@@ -100,7 +107,7 @@ export default function CodeEditorModal({ fileKey, fileSize, onClose, onSaved }:
       {/* エディタ本体 */}
       <div className="flex-1 overflow-auto">
         {loading ? (
-          <p className="p-4 text-gray-400 animate-pulse">読み込み中...</p>
+          <StatusMessage className="p-4 text-gray-400 animate-pulse">読み込み中...</StatusMessage>
         ) : !error ? (
           <CodeMirror
             value={content}
@@ -112,6 +119,6 @@ export default function CodeEditorModal({ fileKey, fileSize, onClose, onSaved }:
           />
         ) : null}
       </div>
-    </div>
+    </Dialog>
   )
 }

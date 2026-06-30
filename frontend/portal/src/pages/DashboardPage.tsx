@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
-import { getComputeStatus, startCompute, stopCompute, InstanceInfo } from '../api'
+import { getComputeStatus, startCompute, stopCompute, restartJupyter, terminateInstance, InstanceInfo } from '../api'
+import { useConfirm } from '../components/ConfirmProvider'
+import { ErrorMessage, StatusMessage } from '../components/Message'
 
 interface Props {
   isAdmin: boolean
@@ -18,6 +20,7 @@ export default function DashboardPage({ isAdmin }: Props) {
   const [loading, setLoading] = useState(true)
   const [actionId, setActionId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const { confirm } = useConfirm()
 
   const fetchStatus = async () => {
     try {
@@ -45,8 +48,25 @@ export default function DashboardPage({ isAdmin }: Props) {
     }
   }
 
+  const handleRestartJupyter = async (id: string) => {
+    setActionId(id)
+    setError(null)
+    try {
+      await restartJupyter(id)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'JupyterLab の再起動に失敗しました')
+    } finally {
+      setActionId(null)
+    }
+  }
+
   const handleStop = async (id: string) => {
-    if (!confirm(`インスタンス ${id} を停止しますか？`)) return
+    if (!(await confirm({
+      title: 'インスタンスを停止しますか？',
+      message: `インスタンス ${id} を停止します。`,
+      confirmLabel: '停止',
+      danger: true,
+    }))) return
     setActionId(id)
     setError(null)
     try {
@@ -54,6 +74,31 @@ export default function DashboardPage({ isAdmin }: Props) {
       await fetchStatus()
     } catch (e) {
       setError(e instanceof Error ? e.message : '停止に失敗しました')
+    } finally {
+      setActionId(null)
+    }
+  }
+
+  const handleTerminate = async (id: string) => {
+    if (!(await confirm({
+      title: 'インスタンスを完全に削除しますか？',
+      message: `インスタンス ${id} を terminate します。\nこの操作は取り消せません。`,
+      confirmLabel: '削除',
+      danger: true,
+    }))) return
+    if (!(await confirm({
+      title: '本当に削除しますか？',
+      message: `インスタンス ${id} は復元できません。`,
+      confirmLabel: '完全に削除',
+      danger: true,
+    }))) return
+    setActionId(id)
+    setError(null)
+    try {
+      await terminateInstance(id)
+      await fetchStatus()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '削除に失敗しました')
     } finally {
       setActionId(null)
     }
@@ -68,13 +113,13 @@ export default function DashboardPage({ isAdmin }: Props) {
         </button>
       </div>
 
-      {error && <p className="mb-4 text-red-400 text-sm">{error}</p>}
+      {error && <ErrorMessage className="mb-4">{error}</ErrorMessage>}
 
       {loading ? (
-        <p className="text-gray-400 animate-pulse">読み込み中...</p>
+        <StatusMessage className="text-gray-400 animate-pulse">読み込み中...</StatusMessage>
       ) : instances.length === 0 ? (
         <div className="text-center py-12">
-          <p className="text-gray-500 mb-4">解析ノードがまだ作成されていません。</p>
+          <p className="text-gray-400 mb-4">解析ノードがまだ作成されていません。</p>
           <button
             onClick={() => handleStart('')}
             disabled={actionId !== null}
@@ -82,19 +127,20 @@ export default function DashboardPage({ isAdmin }: Props) {
           >
             {actionId !== null ? '起動中...' : '解析ノードを起動'}
           </button>
-          {error && <p className="mt-3 text-red-400 text-sm">{error}</p>}
+          {error && <ErrorMessage className="mt-3">{error}</ErrorMessage>}
         </div>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm border-collapse">
+            <caption className="sr-only">解析ノードの状態と操作</caption>
             <thead>
               <tr className="border-b border-gray-700 text-gray-400 text-left">
-                <th className="py-2 pr-4">Instance ID</th>
-                <th className="py-2 pr-4">State</th>
-                <th className="py-2 pr-4">Type</th>
-                <th className="py-2 pr-4">Launch Time</th>
-                {isAdmin && <th className="py-2 pr-4">Owner</th>}
-                <th className="py-2">操作</th>
+                <th scope="col" className="py-2 pr-4">Instance ID</th>
+                <th scope="col" className="py-2 pr-4">State</th>
+                <th scope="col" className="py-2 pr-4">Type</th>
+                <th scope="col" className="py-2 pr-4">Launch Time</th>
+                {isAdmin && <th scope="col" className="py-2 pr-4">Owner</th>}
+                <th scope="col" className="py-2">操作</th>
               </tr>
             </thead>
             <tbody>
@@ -103,29 +149,54 @@ export default function DashboardPage({ isAdmin }: Props) {
                   <td className="py-2 pr-4 font-mono text-xs">{inst.instance_id}</td>
                   <td className={`py-2 pr-4 font-semibold ${STATE_COLOR[inst.state] ?? 'text-gray-300'}`}>
                     {inst.state}
+                    {inst.state === 'running' && (
+                      <StatusMessage className={`inline ml-2 text-xs font-normal ${inst.ssm_connected ? 'text-green-500' : 'text-yellow-400 animate-pulse'}`}>
+                        {inst.ssm_connected ? '● SSM' : '○ SSM接続中...'}
+                      </StatusMessage>
+                    )}
                   </td>
                   <td className="py-2 pr-4 text-gray-300">{inst.instance_type}</td>
                   <td className="py-2 pr-4 text-gray-400 text-xs">
                     {inst.launch_time ? new Date(inst.launch_time).toLocaleString('ja-JP') : '—'}
                   </td>
                   {isAdmin && (
-                    <td className="py-2 pr-4 text-gray-400 text-xs font-mono">{(inst as any).owner || '—'}</td>
+                    <td className="py-2 pr-4 text-gray-400 text-xs font-mono">{inst.owner || '—'}</td>
                   )}
                   <td className="py-2 flex gap-2">
                     <button
                       onClick={() => handleStart(inst.instance_id)}
                       disabled={actionId === inst.instance_id || inst.state === 'running' || inst.state === 'pending'}
+                      aria-label={`${inst.instance_id} を起動`}
                       className="px-2 py-1 rounded text-xs bg-green-800 hover:bg-green-700 disabled:opacity-40"
                     >
                       起動
                     </button>
                     <button
+                      onClick={() => handleRestartJupyter(inst.instance_id)}
+                      disabled={actionId === inst.instance_id || inst.state !== 'running'}
+                      aria-label={`${inst.instance_id} の JupyterLab を再起動`}
+                      className="px-2 py-1 rounded text-xs bg-yellow-800 hover:bg-yellow-700 disabled:opacity-40"
+                    >
+                      JupyterLab 再起動
+                    </button>
+                    <button
                       onClick={() => handleStop(inst.instance_id)}
                       disabled={actionId === inst.instance_id || inst.state === 'stopped' || inst.state === 'stopping'}
+                      aria-label={`${inst.instance_id} を停止`}
                       className="px-2 py-1 rounded text-xs bg-red-800 hover:bg-red-700 disabled:opacity-40"
                     >
                       停止
                     </button>
+                    {isAdmin && (
+                      <button
+                        onClick={() => handleTerminate(inst.instance_id)}
+                        disabled={actionId === inst.instance_id || inst.state === 'terminated'}
+                        aria-label={`${inst.instance_id} を削除`}
+                        className="px-2 py-1 rounded text-xs bg-red-950 hover:bg-red-900 border border-red-700 disabled:opacity-40"
+                      >
+                        削除
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

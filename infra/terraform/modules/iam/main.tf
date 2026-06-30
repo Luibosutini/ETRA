@@ -469,9 +469,12 @@ resource "aws_iam_role_policy" "lambda_dicom_api" {
     Version = "2012-10-17"
     Statement = [
       {
-        Effect   = "Allow"
-        Action   = ["medical-imaging:SearchImageSets"]
-        Resource = var.healthimaging_datastore_arn
+        Effect = "Allow"
+        Action = ["medical-imaging:SearchImageSets"]
+        Resource = [
+          var.healthimaging_datastore_arn,
+          "${var.healthimaging_datastore_arn}/imageset/*",
+        ]
       },
       {
         Effect   = "Allow"

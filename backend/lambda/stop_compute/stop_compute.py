@@ -11,6 +11,7 @@ import json
 import logging
 import os
 import sys
+from typing import Any
 
 sys.path.insert(0, "/opt/python")
 
@@ -25,7 +26,7 @@ TAG_KEY = os.environ.get("ANALYSIS_INSTANCE_TAG_KEY", "Project")
 TAG_VALUE = os.environ.get("ANALYSIS_INSTANCE_TAG_VALUE", "")
 
 
-def handler(event: dict, context: object) -> dict:
+def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     safe_event = {k: v for k, v in event.items() if k != "headers"}
     logger.info("Event: %s", json.dumps(safe_event))
 
@@ -37,7 +38,7 @@ def handler(event: dict, context: object) -> dict:
     except PermissionError as e:
         return forbidden(str(e))
 
-    body: dict = {}
+    body: dict[str, Any] = {}
     if event.get("body"):
         try:
             body = json.loads(event["body"])

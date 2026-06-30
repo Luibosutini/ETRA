@@ -15,6 +15,7 @@ import logging
 import os
 import sys
 import urllib.parse
+from typing import Any
 
 sys.path.insert(0, "/opt/python")
 
@@ -29,9 +30,9 @@ BUCKET = os.environ["WORKSPACE_BUCKET"]
 PRESIGNED_EXPIRY = 900  # 15 分
 
 
-def _list_objects(s3, prefix: str) -> list[dict]:
+def _list_objects(s3: Any, prefix: str) -> list[dict[str, Any]]:
     paginator = s3.get_paginator("list_objects_v2")
-    items = []
+    items: list[dict[str, Any]] = []
     for page in paginator.paginate(Bucket=BUCKET, Prefix=prefix, Delimiter="/"):
         for obj in page.get("Contents", []):
             items.append({
@@ -44,7 +45,7 @@ def _list_objects(s3, prefix: str) -> list[dict]:
     return items
 
 
-def handler(event: dict, context: object) -> dict:
+def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     # headers には Authorization が含まれるため除外してログ出力
     safe_event = {k: v for k, v in event.items() if k != "headers"}
     logger.info("Event: %s", json.dumps(safe_event))

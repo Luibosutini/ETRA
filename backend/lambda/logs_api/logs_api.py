@@ -7,6 +7,7 @@
 import json
 import os
 import time
+from typing import Any, cast
 
 import boto3
 from shared.auth import get_caller_groups
@@ -15,7 +16,7 @@ logs = boto3.client("logs")
 LOG_GROUP_PREFIX = os.environ.get("LOG_GROUP_PREFIX", "/aws/lambda/")
 
 
-def _response(status: int, body: object) -> dict:
+def _response(status: int, body: object) -> dict[str, Any]:
     return {
         "statusCode": status,
         "headers": {"Content-Type": "application/json"},
@@ -23,17 +24,17 @@ def _response(status: int, body: object) -> dict:
     }
 
 
-def _require_admin(event: dict) -> bool:
+def _require_admin(event: dict[str, Any]) -> bool:
     groups = get_caller_groups(event)
     return "admin" in groups
 
 
-def _get_path(event: dict) -> str:
+def _get_path(event: dict[str, Any]) -> str:
     ctx = event.get("requestContext", {})
-    return ctx.get("http", {}).get("path", event.get("path", ""))
+    return cast(str, ctx.get("http", {}).get("path", event.get("path", "")))
 
 
-def handler(event: dict, _context) -> dict:
+def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
     log_event = {k: v for k, v in event.items() if k != "headers"}
     print(json.dumps(log_event, default=str))
 
@@ -53,8 +54,8 @@ def handler(event: dict, _context) -> dict:
     return _list_log_groups()
 
 
-def _list_log_groups() -> dict:
-    groups = []
+def _list_log_groups() -> dict[str, Any]:
+    groups: list[str] = []
     paginator = logs.get_paginator("describe_log_groups")
     for page in paginator.paginate(logGroupNamePrefix=LOG_GROUP_PREFIX):
         for g in page["logGroups"]:
@@ -62,7 +63,7 @@ def _list_log_groups() -> dict:
     return _response(200, {"groups": groups})
 
 
-def _get_log_events(group: str, limit: int) -> dict:
+def _get_log_events(group: str, limit: int) -> dict[str, Any]:
     if not group:
         return _response(400, {"error": "group parameter is required"})
 
@@ -74,7 +75,7 @@ def _get_log_events(group: str, limit: int) -> dict:
         startTime=start_time,
         limit=min(limit, 200),
     )
-    events = [
+    events: list[dict[str, Any]] = [
         {
             "timestamp": e["timestamp"],
             "message": e["message"].rstrip("\n"),

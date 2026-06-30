@@ -8,6 +8,7 @@ import contextlib
 import json
 import os
 import time
+from typing import Any
 
 import boto3
 from shared.auth import get_caller_groups, get_caller_user_id
@@ -20,7 +21,7 @@ ec2 = boto3.client("ec2", region_name=REGION)
 ssm = boto3.client("ssm", region_name=REGION)
 
 
-def handler(event: dict, context) -> dict:
+def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     try:
         user_id = get_caller_user_id(event)
         groups = get_caller_groups(event)
@@ -31,7 +32,7 @@ def handler(event: dict, context) -> dict:
     if "dcv-token" in path:
         return _handle_dcv_token(user_id, groups)
 
-    body = {}
+    body: dict[str, Any] = {}
     if event.get("body"):
         with contextlib.suppress(Exception):
             body = json.loads(event["body"])
@@ -144,7 +145,7 @@ echo "=== jupyter repair done: $(date) ==="
     })
 
 
-def _handle_dcv_token(user_id: str, groups: list) -> dict:
+def _handle_dcv_token(user_id: str, groups: list[str]) -> dict[str, Any]:
     import secrets
     is_admin = "admin" in groups
     filters = [
@@ -215,7 +216,7 @@ def _handle_dcv_token(user_id: str, groups: list) -> dict:
     })
 
 
-def _resp(status: int, body: dict) -> dict:
+def _resp(status: int, body: dict[str, Any]) -> dict[str, Any]:
     return {
         "statusCode": status,
         "headers": {"Content-Type": "application/json"},

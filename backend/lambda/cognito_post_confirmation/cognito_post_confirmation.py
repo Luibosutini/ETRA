@@ -11,6 +11,7 @@ Cognito はこの関数の戻り値として event をそのまま返すこと�
 """
 import logging
 import os
+from typing import Any
 
 import boto3
 
@@ -20,7 +21,7 @@ logger.setLevel(logging.INFO)
 DEFAULT_GROUP = "user"
 
 
-def handler(event: dict, context: object) -> dict:
+def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     trigger_source = event.get("triggerSource", "")
     username = event.get("userName", "")
     user_pool_id = event.get("userPoolId") or os.environ.get("USER_POOL_ID", "")

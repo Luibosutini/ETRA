@@ -14,6 +14,7 @@ import json
 import logging
 import os
 import sys
+from typing import Any
 
 sys.path.insert(0, "/opt/python")
 
@@ -29,7 +30,7 @@ TAG_KEY = os.environ.get("ANALYSIS_INSTANCE_TAG_KEY", "Project")
 TAG_VALUE = os.environ.get("ANALYSIS_INSTANCE_TAG_VALUE", "")
 
 
-def _find_user_instance(ec2, user_id: str) -> dict | None:
+def _find_user_instance(ec2: Any, user_id: str) -> dict[str, Any] | None:
     """ユーザーのインスタンスを返す（terminated を除く）。"""
     resp = ec2.describe_instances(
         Filters=[
@@ -42,7 +43,7 @@ def _find_user_instance(ec2, user_id: str) -> dict | None:
     return instances[0] if instances else None
 
 
-def handler(event: dict, context: object) -> dict:
+def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     safe_event = {k: v for k, v in event.items() if k != "headers"}
     logger.info("Event: %s", json.dumps(safe_event))
 

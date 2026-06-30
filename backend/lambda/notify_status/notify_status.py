@@ -10,6 +10,7 @@ import json
 import logging
 import os
 import sys
+from typing import Any
 
 sys.path.insert(0, "/opt/python")
 
@@ -22,7 +23,7 @@ logger.setLevel(logging.INFO)
 NOTIFY_STATES = {"running", "stopped", "terminated"}
 
 
-def handler(event: dict, context: object) -> dict:
+def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     logger.info("Event: %s", json.dumps(event))
 
     detail = event.get("detail", {})

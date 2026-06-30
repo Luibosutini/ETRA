@@ -13,6 +13,7 @@
 """
 import logging
 import os
+from typing import Any
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -28,7 +29,7 @@ def _allowed_emails() -> list[str]:
     return [e.strip().lower() for e in raw.split(",") if e.strip()]
 
 
-def handler(event: dict, context: object) -> dict:
+def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     """Cognito が自動でイベントを渡し、そのまま返すと登録を許可する。
     例外を送出すると登録を拒否する。
     """

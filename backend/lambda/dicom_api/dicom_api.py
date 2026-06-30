@@ -14,6 +14,7 @@ import json
 import logging
 import os
 import sys
+from typing import Any
 
 sys.path.insert(0, "/opt/python")
 
@@ -30,7 +31,7 @@ DEFAULT_MAX_RESULTS = 25
 MAX_RESULTS_LIMIT = 50
 
 
-def _to_study(summary: dict) -> dict:
+def _to_study(summary: dict[str, Any]) -> dict[str, Any]:
     """SearchImageSets の summary をポータル向けのフラットな形式に変換する。"""
     tags = summary.get("DICOMTags", {})
     created_at = summary.get("createdAt")
@@ -51,7 +52,7 @@ def _to_study(summary: dict) -> dict:
     }
 
 
-def handler(event: dict, context: object) -> dict:
+def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     # headers には Authorization が含まれるため除外してログ出力
     safe_event = {k: v for k, v in event.items() if k != "headers"}
     logger.info("Event: %s", json.dumps(safe_event))
@@ -70,7 +71,7 @@ def handler(event: dict, context: object) -> dict:
         return bad_request(f"Invalid max_results: {raw_max}")
     max_results = max(1, min(max_results, MAX_RESULTS_LIMIT))
 
-    kwargs: dict = {"datastoreId": DATASTORE_ID, "maxResults": max_results}
+    kwargs: dict[str, Any] = {"datastoreId": DATASTORE_ID, "maxResults": max_results}
     if query_params.get("next_token"):
         kwargs["nextToken"] = query_params["next_token"]
     if query_params.get("patient_id"):

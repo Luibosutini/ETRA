@@ -8,6 +8,7 @@
 """
 import json
 import os
+from typing import Any, cast
 
 import boto3
 from shared.auth import get_caller_groups
@@ -17,7 +18,7 @@ ec2 = boto3.client("ec2")
 USER_POOL_ID = os.environ["USER_POOL_ID"]
 
 
-def _response(status: int, body: object) -> dict:
+def _response(status: int, body: object) -> dict[str, Any]:
     return {
         "statusCode": status,
         "headers": {"Content-Type": "application/json"},
@@ -25,22 +26,22 @@ def _response(status: int, body: object) -> dict:
     }
 
 
-def _require_admin(event: dict) -> bool:
+def _require_admin(event: dict[str, Any]) -> bool:
     groups = get_caller_groups(event)
     return "admin" in groups
 
 
-def _get_method(event: dict) -> str:
+def _get_method(event: dict[str, Any]) -> str:
     ctx = event.get("requestContext", {})
-    return ctx.get("http", {}).get("method", event.get("httpMethod", "GET")).upper()
+    return cast(str, ctx.get("http", {}).get("method", event.get("httpMethod", "GET")).upper())
 
 
-def _get_path(event: dict) -> str:
+def _get_path(event: dict[str, Any]) -> str:
     ctx = event.get("requestContext", {})
-    return ctx.get("http", {}).get("path", event.get("path", ""))
+    return cast(str, ctx.get("http", {}).get("path", event.get("path", "")))
 
 
-def handler(event: dict, _context) -> dict:
+def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
     # ログ出力（Authorization ヘッダー除外）
     log_event = {k: v for k, v in event.items() if k != "headers"}
     print(json.dumps(log_event, default=str))
@@ -76,8 +77,8 @@ def handler(event: dict, _context) -> dict:
     return _response(404, {"error": "Not found"})
 
 
-def _list_users() -> dict:
-    users = []
+def _list_users() -> dict[str, Any]:
+    users: list[dict[str, Any]] = []
     paginator = cognito.get_paginator("list_users")
     for page in paginator.paginate(UserPoolId=USER_POOL_ID):
         for u in page["Users"]:
@@ -99,7 +100,7 @@ def _list_users() -> dict:
     return _response(200, {"users": users})
 
 
-def _add_user_to_group(username: str, group: str) -> dict:
+def _add_user_to_group(username: str, group: str) -> dict[str, Any]:
     if not username or not group:
         return _response(400, {"error": "username and group are required"})
     cognito.admin_add_user_to_group(
@@ -108,7 +109,7 @@ def _add_user_to_group(username: str, group: str) -> dict:
     return _response(200, {"message": f"Added {username} to {group}"})
 
 
-def _remove_user_from_group(username: str, group: str) -> dict:
+def _remove_user_from_group(username: str, group: str) -> dict[str, Any]:
     if not username or not group:
         return _response(400, {"error": "username and group are required"})
     cognito.admin_remove_user_from_group(
@@ -117,7 +118,7 @@ def _remove_user_from_group(username: str, group: str) -> dict:
     return _response(200, {"message": f"Removed {username} from {group}"})
 
 
-def _terminate_instance(instance_id: str) -> dict:
+def _terminate_instance(instance_id: str) -> dict[str, Any]:
     if not instance_id:
         return _response(400, {"error": "instance_id is required"})
     ec2.terminate_instances(InstanceIds=[instance_id])

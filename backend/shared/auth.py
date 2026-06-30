@@ -1,7 +1,7 @@
 """Cognito JWT から呼び出し元ユーザー情報を取得するヘルパー。"""
 import base64
 import json
-from typing import Any
+from typing import Any, cast
 
 
 def _decode_jwt_payload(token: str) -> dict[str, Any]:
@@ -17,10 +17,10 @@ def _decode_jwt_payload(token: str) -> dict[str, Any]:
     padding = 4 - len(payload) % 4
     if padding != 4:
         payload += "=" * padding
-    return json.loads(base64.urlsafe_b64decode(payload))
+    return cast(dict[str, Any], json.loads(base64.urlsafe_b64decode(payload)))
 
 
-def _get_claims(event: dict) -> dict:
+def _get_claims(event: dict[str, Any]) -> dict[str, Any]:
     """API Gateway v1 / v2 両形式から JWT claims を取得する。
 
     v2 (HTTP API): requestContext.authorizer.jwt.claims
@@ -31,12 +31,12 @@ def _get_claims(event: dict) -> dict:
     # v2 形式を優先
     jwt_block = authorizer.get("jwt", {})
     if jwt_block:
-        return jwt_block.get("claims", {})
+        return cast(dict[str, Any], jwt_block.get("claims", {}))
     # v1 フォールバック
-    return authorizer.get("claims", {})
+    return cast(dict[str, Any], authorizer.get("claims", {}))
 
 
-def get_caller_user_id(event: dict) -> str:
+def get_caller_user_id(event: dict[str, Any]) -> str:
     """API Gateway の requestContext から Cognito ユーザー ID を取得する。
 
     HTTP API v2 / REST API v1 の両形式に対応する。
@@ -45,10 +45,10 @@ def get_caller_user_id(event: dict) -> str:
     user_id = claims.get("sub", "")
     if not user_id:
         raise PermissionError("Unauthenticated request")
-    return user_id
+    return cast(str, user_id)
 
 
-def get_caller_groups(event: dict) -> list[str]:
+def get_caller_groups(event: dict[str, Any]) -> list[str]:
     """呼び出し元が所属する Cognito グループのリストを返す。
 
     v2 JWT では cognito:groups が JSON 配列文字列 '["admin","user"]' で来る場合がある。
@@ -74,7 +74,7 @@ def get_caller_groups(event: dict) -> list[str]:
     return [g.strip() for g in groups_val.split(",") if g.strip()]
 
 
-def is_admin(event: dict) -> bool:
+def is_admin(event: dict[str, Any]) -> bool:
     return "admin" in get_caller_groups(event)
 
 

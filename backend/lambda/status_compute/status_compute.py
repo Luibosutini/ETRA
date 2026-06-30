@@ -10,6 +10,7 @@ import json
 import logging
 import os
 import sys
+from typing import Any, cast
 
 sys.path.insert(0, "/opt/python")
 
@@ -25,7 +26,7 @@ TAG_KEY = os.environ.get("ANALYSIS_INSTANCE_TAG_KEY", "Project")
 TAG_VALUE = os.environ.get("ANALYSIS_INSTANCE_TAG_VALUE", "")
 
 
-def _instance_summary(instance: dict, ssm_connected_ids: set) -> dict:
+def _instance_summary(instance: dict[str, Any], ssm_connected_ids: set[str]) -> dict[str, Any]:
     tags = {t["Key"]: t["Value"] for t in instance.get("Tags", [])}
     return {
         "instance_id": instance["InstanceId"],
@@ -39,7 +40,7 @@ def _instance_summary(instance: dict, ssm_connected_ids: set) -> dict:
     }
 
 
-def _get_ssm_connected_ids(instance_ids: list) -> set:
+def _get_ssm_connected_ids(instance_ids: list[str]) -> set[str]:
     if not instance_ids:
         return set()
     try:
@@ -47,12 +48,12 @@ def _get_ssm_connected_ids(instance_ids: list) -> set:
         resp = ssm.describe_instance_information(
             Filters=[{"Key": "InstanceIds", "Values": instance_ids}]
         )
-        return {i["InstanceId"] for i in resp.get("InstanceInformationList", [])}
+        return cast(set[str], {i["InstanceId"] for i in resp.get("InstanceInformationList", [])})
     except Exception:
         return set()
 
 
-def handler(event: dict, context: object) -> dict:
+def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     safe_event = {k: v for k, v in event.items() if k != "headers"}
     logger.info("Event: %s", json.dumps(safe_event))
 

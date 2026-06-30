@@ -5,6 +5,7 @@ Cognito JWT で認証済みのユーザーに、SSM ポートフォワーディ�
 """
 import json
 import os
+from typing import Any
 
 import boto3
 from shared.auth import get_caller_user_id
@@ -15,7 +16,7 @@ REGION = os.environ.get("REGION", "us-east-1")
 sts = boto3.client("sts", region_name=REGION)
 
 
-def handler(event: dict, context) -> dict:
+def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     try:
         user_id = get_caller_user_id(event)
     except Exception:
@@ -43,7 +44,7 @@ def handler(event: dict, context) -> dict:
     })
 
 
-def _resp(status: int, body: dict) -> dict:
+def _resp(status: int, body: dict[str, Any]) -> dict[str, Any]:
     return {
         "statusCode": status,
         "headers": {"Content-Type": "application/json"},

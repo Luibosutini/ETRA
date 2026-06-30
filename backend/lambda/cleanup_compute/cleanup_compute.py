@@ -17,6 +17,7 @@ import os
 import re
 import sys
 from datetime import UTC, datetime, timedelta
+from typing import Any, cast
 
 sys.path.insert(0, "/opt/python")
 
@@ -32,7 +33,7 @@ IDLE_DURATION_MINUTES = int(os.environ.get("IDLE_DURATION_MINUTES", "30"))
 STOPPED_DAYS_THRESHOLD = int(os.environ.get("STOPPED_DAYS_THRESHOLD", "7"))
 
 
-def _get_avg_cpu(cw, instance_id: str, minutes: int) -> float | None:
+def _get_avg_cpu(cw: Any, instance_id: str, minutes: int) -> float | None:
     """指定期間の平均 CPU 使用率を返す。データ不足時は None。"""
     end = datetime.now(UTC)
     start = end - timedelta(minutes=minutes)
@@ -48,7 +49,7 @@ def _get_avg_cpu(cw, instance_id: str, minutes: int) -> float | None:
     datapoints = resp.get("Datapoints", [])
     if not datapoints:
         return None
-    return datapoints[0]["Average"]
+    return cast(float, datapoints[0]["Average"])
 
 
 def _parse_state_transition_time(reason: str) -> datetime | None:
@@ -64,7 +65,7 @@ def _parse_state_transition_time(reason: str) -> datetime | None:
         return None
 
 
-def handler(event: dict, context: object) -> dict:
+def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     logger.info("Cleanup started")
 
     ec2 = ec2_client()

@@ -1,0 +1,5 @@
+builder_subnet_id = "subnet-0510517ecc4ecdfc0"
+
+matlab_release = "R2024b"
+
+matlab_products = "MATLAB Simulink Image_Processing_Toolbox Signal_Processing_Toolbox Statistics_and_Machine_Learning_Toolbox Optimization_Toolbox Parallel_Computing_Toolbox Curve_Fitting_Toolbox Control_System_Toolbox"
